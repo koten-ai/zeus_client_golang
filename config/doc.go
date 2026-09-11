@@ -8,4 +8,5 @@
 // rejects zeus.auth_mode=none and TLS verify off.
 //
 // Secret values are resolved later via ports.SecretStore (adapters/secretsenv).
+// Client.Config returns Snapshot (maps copied).
 package config

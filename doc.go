@@ -3,7 +3,8 @@
 // Package zeusclient is the native Go Zeus Client.
 //
 // Same Client law as zeus_client_python (hexagonal domain / ports / adapters).
-// Construct with New and release with Close. Import:
+// Construct with New and release with Close. Config is a snapshot; Zeus and
+// Agent return stub API handles until later tickets. Import:
 //
 //	import zeusclient "github.com/koten-ai/zeus_client_golang"
 //

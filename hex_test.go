@@ -33,14 +33,14 @@ func TestVersionExported(t *testing.T) {
 }
 
 func TestNewClose(t *testing.T) {
-	c, err := New(Options{})
+	c, err := New(isolatedOpts())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c == nil {
 		t.Fatal("New returned nil Client")
 	}
-	c2, err := New(Options{})
+	c2, err := New(isolatedOpts())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestNewClose(t *testing.T) {
 }
 
 func TestCloseConcurrent(t *testing.T) {
-	c, err := New(Options{})
+	c, err := New(isolatedOpts())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,8 +93,17 @@ func TestHexagonalDirsExist(t *testing.T) {
 	}
 }
 
+func TestPortsFreeOfNetHTTP(t *testing.T) {
+	walkNoNetHTTP(t, "ports")
+}
+
 func TestDomainFreeOfNetHTTP(t *testing.T) {
-	err := filepath.WalkDir("domain", func(path string, d fs.DirEntry, err error) error {
+	walkNoNetHTTP(t, "domain")
+}
+
+func walkNoNetHTTP(t *testing.T, root string) {
+	t.Helper()
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -109,12 +118,12 @@ func TestDomainFreeOfNetHTTP(t *testing.T) {
 		for _, imp := range f.Imports {
 			impPath := strings.Trim(imp.Path.Value, `"`)
 			if impPath == "net/http" || strings.HasPrefix(impPath, "net/http/") {
-				t.Errorf("%s imports %s (domain must stay free of net/http)", path, impPath)
+				t.Errorf("%s imports %s (must stay free of net/http)", path, impPath)
 			}
 			const mod = "github.com/koten-ai/zeus_client_golang"
 			if impPath == mod+"/adapters" || strings.HasPrefix(impPath, mod+"/adapters/") ||
 				impPath == mod+"/internal/httpx" || strings.HasPrefix(impPath, mod+"/internal/httpx/") {
-				t.Errorf("%s imports %s (domain must not import adapters/httpx)", path, impPath)
+				t.Errorf("%s imports %s (must not import adapters/httpx)", path, impPath)
 			}
 		}
 		return nil
