@@ -14,8 +14,8 @@ import (
 // map isolates tests from process env (same as config.Load). Config, when
 // non-nil, is snapshotted and used as-is (Load is skipped).
 //
-// Journal / Secrets / Clock / IDs / Redactor default when nil. HTTP, Zeus,
-// LLM, Catalog, and Jobs stay nil unless injected — no P-HTTP/auth/verbs here.
+// Journal / Secrets / Clock / IDs / Redactor / HTTP default when nil.
+// Zeus, LLM, Catalog, and Jobs stay nil unless injected — no auth/verbs here.
 type Options struct {
 	Profile    string
 	ConfigPath string

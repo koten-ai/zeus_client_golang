@@ -12,6 +12,9 @@ type HTTPRequest struct {
 	Headers  map[string]string
 	Body     []byte
 	TimeoutS float64 // 0 → adapter default (Zeus 30s)
+	// PreMintReqID sends X-Zeus-Req-Id as UUID v4 when the header is absent.
+	// Default false: omit the header and read Zeus's echo (preferred).
+	PreMintReqID bool
 }
 
 // HTTPResponse is status + headers + body. Adapters must capture

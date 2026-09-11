@@ -26,6 +26,25 @@ var (
 // ReqIDHeader is the Zeus hop correlation header. Prefer Zeus mint; read echo.
 const ReqIDHeader = "X-Zeus-Req-Id"
 
+// ReqIDFromHeaders returns the full X-Zeus-Req-Id (never truncated).
+// Empty when absent. Lookup is case-insensitive (Python req_id_from_headers).
+func ReqIDFromHeaders(h map[string]string) string {
+	if h == nil {
+		return ""
+	}
+	for k, v := range h {
+		if strings.EqualFold(k, ReqIDHeader) {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+// HasReqIDHeader reports whether h already carries X-Zeus-Req-Id (any casing).
+func HasReqIDHeader(h map[string]string) bool {
+	return ReqIDFromHeaders(h) != ""
+}
+
 // TurnID is one agent/direct turn (client-minted UUID v4).
 type TurnID string
 

@@ -150,6 +150,26 @@ func (e *Error) Unwrap() error {
 	return e.Cause
 }
 
+// Object is the nested envelope error object (API_RESULT §2).
+func (e *Error) Object() map[string]any {
+	if e == nil {
+		return nil
+	}
+	out := map[string]any{
+		"code":      string(e.Code),
+		"message":   e.Message,
+		"type":      e.Type,
+		"retryable": e.Retryable,
+	}
+	if e.Component != "" {
+		out["source"] = map[string]any{"file": e.Component}
+	}
+	if e.Cause != nil {
+		out["cause"] = e.Cause.Error()
+	}
+	return out
+}
+
 // Map is the family wire shape (Python ZeusClientError.to_dict + error.type).
 func (e *Error) Map() map[string]any {
 	if e == nil {

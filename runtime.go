@@ -7,15 +7,19 @@ import (
 	"io"
 	"sync"
 
+	"time"
+
 	"github.com/koten-ai/zeus_client_golang/adapters/secretsenv"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
+	"github.com/koten-ai/zeus_client_golang/internal/httpx"
 	"github.com/koten-ai/zeus_client_golang/ports"
 	"github.com/koten-ai/zeus_client_golang/security"
 )
 
 // Services is the internal dependency bundle (Python runtime.Services).
-// Network ports stay nil unless the caller injects fakes / adapters.
+// HTTP defaults to a dedicated internal/httpx client. Zeus / LLM / catalog /
+// jobs stay nil unless the caller injects fakes / adapters.
 type Services struct {
 	Journal  journal.ExecutionJournal
 	Secrets  ports.SecretStore
@@ -69,6 +73,13 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 	if red == nil {
 		red = security.New()
 	}
+	httpPort := opts.HTTP
+	if httpPort == nil {
+		httpPort = httpx.New(httpx.Options{
+			Timeout:       timeoutFromSeconds(cfg.Zeus.TimeoutS),
+			SkipTLSVerify: !cfg.Zeus.TLSVerify,
+		})
+	}
 	return &runtime{
 		cfg:      cfg,
 		journal:  j,
@@ -76,12 +87,19 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 		clock:    clk,
 		ids:      ids,
 		redactor: red,
-		http:     opts.HTTP,
+		http:     httpPort,
 		zeus:     opts.Zeus,
 		llm:      opts.LLM,
 		catalog:  opts.Catalog,
 		jobs:     opts.Jobs,
 	}
+}
+
+func timeoutFromSeconds(seconds float64) time.Duration {
+	if seconds <= 0 {
+		return httpx.DefaultTimeout
+	}
+	return time.Duration(seconds * float64(time.Second))
 }
 
 func (r *runtime) services() Services {

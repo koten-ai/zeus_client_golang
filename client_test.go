@@ -101,8 +101,11 @@ func TestRuntimeFromConfigDevelopment(t *testing.T) {
 	if svc.Redactor == nil {
 		t.Fatal("redactor")
 	}
-	if svc.HTTP != nil || svc.Zeus != nil || svc.LLM != nil || svc.Catalog != nil || svc.Jobs != nil {
-		t.Fatal("network ports must stay nil unless injected")
+	if svc.HTTP == nil {
+		t.Fatal("default HTTP transport")
+	}
+	if svc.Zeus != nil || svc.LLM != nil || svc.Catalog != nil || svc.Jobs != nil {
+		t.Fatal("zeus/llm/catalog/jobs must stay nil unless injected")
 	}
 	if cfg.SemanticCache.Enabled {
 		t.Fatal("semantic cache")
@@ -192,6 +195,9 @@ func TestTwoClientsDoNotShareJournal(t *testing.T) {
 	}
 	if j1 == j2 {
 		t.Fatal("New must not share one journal")
+	}
+	if c1.Services().HTTP == nil || c1.Services().HTTP == c2.Services().HTTP {
+		t.Fatal("New must not share one HTTP client")
 	}
 	j1.Append(journal.JournalEvent{Type: journal.EventNote, Component: "test"})
 	if n := len(j2.Events()); n != 0 {
