@@ -314,7 +314,8 @@ func TestZeusAgentHandles(t *testing.T) {
 	z := c.Zeus()
 	a := c.Agent()
 	cat := c.Catalog()
-	if z == nil || a == nil || cat == nil {
+	sess := c.Session()
+	if z == nil || a == nil || cat == nil || sess == nil {
 		t.Fatal("handles")
 	}
 	if z.Host() != c {
@@ -323,8 +324,11 @@ func TestZeusAgentHandles(t *testing.T) {
 	if a.Host() != c {
 		t.Fatal("Agent host")
 	}
+	if sess.Host() != c {
+		t.Fatal("Session host")
+	}
 	var n *Client
-	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil {
+	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil || n.Session() != nil {
 		t.Fatal("nil Client handles")
 	}
 	if n.Config().Profile != "" {
@@ -361,6 +365,7 @@ func TestConfigCloseRace(t *testing.T) {
 			_ = c.Zeus()
 			_ = c.Agent()
 			_ = c.Catalog()
+			_ = c.Session()
 			_ = c.Journal()
 			if err := c.Close(); err != nil {
 				t.Errorf("Close: %v", err)

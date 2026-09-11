@@ -1,0 +1,15 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "status": 201,
+  "headers": {
+    "X-Zeus-Req-Id": "d4000000-0000-4000-8000-000000000004",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "session_id": "zsess_mock_turn_001",
+    "round": 1,
+    "hash": "mock:00000000000000000000000000000000",
+    "contract_status": "ok",
+    "max_rounds": 16
+  }
+}

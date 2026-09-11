@@ -1,0 +1,13 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "status": 200,
+  "headers": {
+    "X-Zeus-Req-Id": "e5000000-0000-4000-8000-000000000005",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "session_id": "zsess_mock_turn_001",
+    "round": 2,
+    "status": "ok"
+  }
+}

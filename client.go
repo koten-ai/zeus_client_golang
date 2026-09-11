@@ -117,6 +117,24 @@ func (c *Client) Agent() *api.AgentAPI {
 	return api.NewAgentAPI(c)
 }
 
+// Session is the durable-session facade (create / continue / rehydrate).
+// Trace POST is ZCG-16. Runtime has no dedicated session port — the API
+// lazy-opens adapters/zeushttp.SessionClient from Config + HTTP.
+func (c *Client) Session() *api.SessionAPI {
+	if c == nil || c.rt == nil {
+		return nil
+	}
+	svc := c.Services()
+	cfg := c.Config()
+	return api.NewSessionAPIWith(c, api.SessionOptions{
+		HTTP:     svc.HTTP,
+		Secrets:  svc.Secrets,
+		Config:   cfg,
+		Version:  Version,
+		Identity: cfg.Client,
+	})
+}
+
 // Services is the injected port bundle (Python ZeusRuntime.services).
 func (c *Client) Services() Services {
 	if c == nil || c.rt == nil {
