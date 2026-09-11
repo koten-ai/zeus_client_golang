@@ -9,4 +9,6 @@
 // zeus_client.domain.errors / ids). ZCG-9 lands domain/journal. ZCG-18
 // lands contract hash oracles + product stamps (never invent production
 // hashes). ZCG-15 lands catalog path/lineage/mini_schema/floor (fail-closed).
+// ZCG-20 lands named rules freeze, tool-trail Bag B, and inject proof
+// (BRIEF/MINI sha12). Control-plane splice is application.
 package domain

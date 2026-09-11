@@ -9,7 +9,7 @@ This is **Option A**: a native SDK (no FFI). Same **Client law** as
 the behavioral oracle when implementation details differ; family law still wins
 on stamps, COMPAT, and claim honesty.
 
-> **G0.2 + ZCG-10 + ZCG-5 + ZCG-9 + ZCG-12 + ZCG-11 + ZCG-8 + ZCG-17 + ZCG-18 + ZCG-15 + ZCG-13** — hexagonal
+> **G0.2 + ZCG-10 + ZCG-5 + ZCG-9 + ZCG-12 + ZCG-11 + ZCG-8 + ZCG-17 + ZCG-18 + ZCG-15 + ZCG-13 + ZCG-20** — hexagonal
 > packages, `New` / `Close` / `Config` / `Zeus`+`Agent` handles, domain
 > IDs, family `ErrorCode` catalogue, result envelope, `security`
 > DefaultRedactor, concurrent-safe `domain/journal`, `config` RuntimeConfig,
@@ -17,8 +17,9 @@ on stamps, COMPAT, and claim honesty.
 > P-Auth (`adapters/zeushttp` none/basic/bearer/session), contract hash
 > oracles (`domain` extract vs compute; invent → `030005`), P-Catalog
 > (`adapters/catalogfs` fail-closed load + public `mini_schema`; extract stamp
-> only), and P-Direct (`zeushttp.Port` + `RunDataVerb` / typeahead; no public
-> pipeline). Claim remains **candidate** until a human
+> only), P-Direct (`zeushttp.Port` + `RunDataVerb` / typeahead; no public
+> pipeline), and Bag B inject (hash-excluded; rules freeze; tool-path policy).
+> Claim remains **candidate** until a human
 > [MATRIX](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 > row. Everyday Q&A stays Mode 1; jobs are never auto-promoted from chat.
 
@@ -120,10 +121,10 @@ is the public `New` / `Close` shape; folders follow
 github.com/koten-ai/zeus_client_golang
   client.go runtime.go version.go
   config/          # RuntimeConfig, profiles, loader (ZCG-12)
-  domain/          # ids + ErrorCode (ZCG-10); Result envelope (ZCG-8); journal (ZCG-9); contract+stamps (ZCG-18); catalog path/lineage/mini_schema/floor (ZCG-15)
+  domain/          # ids + ErrorCode (ZCG-10); Result envelope (ZCG-8); journal (ZCG-9); contract+stamps (ZCG-18); catalog path/lineage/mini_schema/floor (ZCG-15); rules freeze + inject proof + tool trail (ZCG-20)
   ports/           # SecretStore (ZCG-12); Zeus, LLM, catalog, clock, ids, HTTP, jobs (ZCG-11)
   adapters/        # secretsenv (ZCG-12); zeushttp headers+auth+verbs (ZCG-8, ZCG-17, ZCG-13); catalogfs (ZCG-15)
-  application/     # data verbs + typeahead (ZCG-13); agent turn, catalog sync, projectors later
+  application/     # data verbs + typeahead (ZCG-13); Bag B inject (ZCG-20); agent turn, catalog sync, projectors later
   api/             # agent, data, catalog, debug, session
   observability/   # slog family events + REDACT
   security/        # DefaultRedactor + RedactAttrs (ZCG-5); jailbreak later

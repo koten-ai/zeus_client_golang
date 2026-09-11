@@ -4,5 +4,6 @@
 // catalog sync, session lifecycle, and projectors.
 //
 // ZCG-13 lands RunDataVerb (no public pipeline) and RunTypeaheadSearch
-// (Direct only — never agent.Run).
+// (Direct only — never agent.Run). ZCG-20 lands hash-excluded Bag B inject
+// (control plane + tool-path policy). No session / LLM.
 package application
