@@ -29,8 +29,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          # No go.sum yet (stdlib only). Re-enable cache when the first dep lands.
-          cache: false
+          cache: true
 
       - name: gofmt already clean
         run: |
