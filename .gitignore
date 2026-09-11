@@ -1,0 +1,86 @@
+# --- Go ---
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Coverage / test artifacts
+coverage.out
+coverage.html
+*.coverprofile
+profile.cov
+cpu.out
+mem.out
+
+# Dependency dirs (prefer modules)
+vendor/
+
+# go work (local multi-module workspace)
+go.work
+go.work.sum
+
+# Delve / debug
+__debug_bin*
+debug
+
+# --- Secrets / env ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.yaml
+secrets.yml
+config.json
+
+# --- Local scratch ---
+/tmp/
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# --- Windows ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- Editors / IDEs ---
+.idea/
+.vscode/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# --- AI / agent local scratch ---
+.claude/
+.cursor/
+.grok/
+terminals/
+mcps/
