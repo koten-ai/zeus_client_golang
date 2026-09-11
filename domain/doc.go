@@ -6,6 +6,7 @@
 // It must stay free of net/http and provider SDKs. Adapters depend inward.
 //
 // ZCG-10 lands typed IDs and the family ErrorCode catalogue (Python
-// zeus_client.domain.errors / ids). ZCG-9 lands domain/journal. Later
-// tickets fill contract, catalog, Layer A, and policy.
+// zeus_client.domain.errors / ids). ZCG-9 lands domain/journal. ZCG-18
+// lands contract hash oracles + product stamps (never invent production
+// hashes). Catalog FS is ZCG-15.
 package domain

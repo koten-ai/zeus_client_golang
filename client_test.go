@@ -72,6 +72,19 @@ var (
 	_ ports.Closer   = (*fakeHTTP)(nil)
 )
 
+func TestProductStampVersionTracksPackage(t *testing.T) {
+	s := domain.ProductStamp(domain.StampOptions{Version: Version})
+	if s["version"] != Version {
+		t.Fatalf("stamp version %v package %s", s["version"], Version)
+	}
+	if s["user"] != domain.ProductUser {
+		t.Fatalf("user %v", s["user"])
+	}
+	if err := domain.AssertProductStamp(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRuntimeFromConfigDevelopment(t *testing.T) {
 	c, err := New(Options{Profile: "development", Env: map[string]string{}})
 	if err != nil {
