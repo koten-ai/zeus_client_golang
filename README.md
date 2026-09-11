@@ -24,7 +24,7 @@ import zeusclient "github.com/koten-ai/zeus_client_golang"
 | --- | --- |
 | **module** | `github.com/koten-ai/zeus_client_golang` |
 | **min Go** | **1.22** |
-| **license** | Apache-2.0 |
+| **license** | **BUSL-1.1** (Additional Use Grant: None; Change License Apache-2.0 on 2030-09-10) |
 | **claim_level** | **candidate** (not `supported`) |
 | **client_floor** | `client-floor-5` |
 | **modes** | `agent`, `direct` |
@@ -107,4 +107,12 @@ Prefer clones next to this repo so pin paths resolve:
 
 ## License
 
-Apache License 2.0. Copyright 2026 Koten AI. See [LICENSE](LICENSE).
+Zeus Client Go is licensed under the **Business Source License 1.1 (BUSL-1.1)**
+with `Additional Use Grant: None` — **no production use is permitted without
+a commercial license** from Koten AI. The license converts to **Apache License
+2.0** on the Change Date (**2030-09-10**).
+
+- Repo-wide default: [`LICENSE`](LICENSE)
+- Full BSL text and parameters: [`licenses/BSL-1.1.txt`](licenses/BSL-1.1.txt)
+
+Commercial licensing: info@koten.ai

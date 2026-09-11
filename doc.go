@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 // Package zeusclient is the native Go Zeus Client.
 //
 // Same Client law as zeus_client_python (hexagonal domain / ports / adapters).
