@@ -8,5 +8,5 @@
 // ZCG-10 lands typed IDs and the family ErrorCode catalogue (Python
 // zeus_client.domain.errors / ids). ZCG-9 lands domain/journal. ZCG-18
 // lands contract hash oracles + product stamps (never invent production
-// hashes). Catalog FS is ZCG-15.
+// hashes). ZCG-15 lands catalog path/lineage/mini_schema/floor (fail-closed).
 package domain

@@ -86,6 +86,19 @@ func (c *Client) Zeus() *api.ZeusAPI {
 	return api.NewZeusAPI(c)
 }
 
+// Catalog is the catalog facade (load / info / contract.hash / mini_schema).
+// Runtime services.Catalog stays nil unless injected; the API may lazy-open
+// FsCatalogStore from Config.ChatRequestsDir.
+func (c *Client) Catalog() *api.CatalogAPI {
+	if c == nil || c.rt == nil {
+		return nil
+	}
+	return api.NewCatalogAPI(api.CatalogOptions{
+		Store:  c.Services().Catalog,
+		Config: c.Config(),
+	})
+}
+
 // Agent is the Mode 1 agent-plane facade. run_turn lands in ZCG-22.
 func (c *Client) Agent() *api.AgentAPI {
 	if c == nil {

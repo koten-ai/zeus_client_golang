@@ -120,6 +120,9 @@ func TestRuntimeFromConfigDevelopment(t *testing.T) {
 	if svc.Zeus != nil || svc.LLM != nil || svc.Catalog != nil || svc.Jobs != nil {
 		t.Fatal("zeus/llm/catalog/jobs must stay nil unless injected")
 	}
+	if c.Catalog() == nil {
+		t.Fatal("Catalog handle")
+	}
 	if cfg.SemanticCache.Enabled {
 		t.Fatal("semantic cache")
 	}
@@ -261,7 +264,8 @@ func TestZeusAgentHandles(t *testing.T) {
 	defer c.Close()
 	z := c.Zeus()
 	a := c.Agent()
-	if z == nil || a == nil {
+	cat := c.Catalog()
+	if z == nil || a == nil || cat == nil {
 		t.Fatal("handles")
 	}
 	if z.Host() != c {
@@ -271,7 +275,7 @@ func TestZeusAgentHandles(t *testing.T) {
 		t.Fatal("Agent host")
 	}
 	var n *Client
-	if n.Zeus() != nil || n.Agent() != nil {
+	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil {
 		t.Fatal("nil Client handles")
 	}
 	if n.Config().Profile != "" {
@@ -307,6 +311,7 @@ func TestConfigCloseRace(t *testing.T) {
 			_ = c.Services()
 			_ = c.Zeus()
 			_ = c.Agent()
+			_ = c.Catalog()
 			_ = c.Journal()
 			if err := c.Close(); err != nil {
 				t.Errorf("Close: %v", err)

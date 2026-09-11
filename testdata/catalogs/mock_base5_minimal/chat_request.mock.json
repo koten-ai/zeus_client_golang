@@ -1,0 +1,42 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "_lineage": "mock_base5_minimal",
+  "base_id": "base-5",
+  "mode": "analytics",
+  "contract": {
+    "id": "mock_analytics_b5",
+    "hash": "mock:00000000000000000000000000000000"
+  },
+  "metadata": {
+    "title": "Mock analytics catalog for conformance",
+    "note": "Not a real Hub stamp"
+  },
+  "instructions": {
+    "system_prompt": "You are a mock analytics assistant for suite tests. Use tools. Terminate with return Layer A JSON.",
+    "verb_usage_guide": "Prefer search then project. Always terminate with return.",
+    "response_expectations": "Required four Layer A fields on return."
+  },
+  "verbs": [
+    {
+      "name": "search",
+      "description": "FTS search",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "q": { "type": "string" },
+          "limit": { "type": "integer" }
+        },
+        "required": ["q"]
+      }
+    },
+    {
+      "name": "return",
+      "description": "Terminate with Layer A",
+      "parameters": {
+        "type": "object",
+        "required": ["summary", "query_decomposition", "decomposition", "confidence"]
+      }
+    }
+  ],
+  "messages": []
+}

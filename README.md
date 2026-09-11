@@ -9,14 +9,15 @@ This is **Option A**: a native SDK (no FFI). Same **Client law** as
 the behavioral oracle when implementation details differ; family law still wins
 on stamps, COMPAT, and claim honesty.
 
-> **G0.2 + ZCG-10 + ZCG-5 + ZCG-9 + ZCG-12 + ZCG-11 + ZCG-8 + ZCG-17** — hexagonal
+> **G0.2 + ZCG-10 + ZCG-5 + ZCG-9 + ZCG-12 + ZCG-11 + ZCG-8 + ZCG-17 + ZCG-18 + ZCG-15** — hexagonal
 > packages, `New` / `Close` / `Config` / stub `Zeus`+`Agent` handles, domain
 > IDs, family `ErrorCode` catalogue, result envelope, `security`
 > DefaultRedactor, concurrent-safe `domain/journal`, `config` RuntimeConfig,
 > injected ports, P-HTTP (`internal/httpx` + `X-Zeus-Req-Id` capture),
-> P-Auth (`adapters/zeushttp` none/basic/bearer/session), and contract hash
-> oracles (`domain` extract vs compute; invent → `030005`). P-Catalog is
-> ZCG-15. Claim remains **candidate** until a human
+> P-Auth (`adapters/zeushttp` none/basic/bearer/session), contract hash
+> oracles (`domain` extract vs compute; invent → `030005`), and P-Catalog
+> (`adapters/catalogfs` fail-closed load + public `mini_schema`; extract stamp
+> only). Direct verbs are ZCG-13. Claim remains **candidate** until a human
 > [MATRIX](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 > row. Everyday Q&A stays Mode 1; jobs are never auto-promoted from chat.
 
@@ -118,9 +119,9 @@ is the public `New` / `Close` shape; folders follow
 github.com/koten-ai/zeus_client_golang
   client.go runtime.go version.go
   config/          # RuntimeConfig, profiles, loader (ZCG-12)
-  domain/          # ids + ErrorCode (ZCG-10); Result envelope (ZCG-8); journal (ZCG-9); contract+stamps (ZCG-18)
+  domain/          # ids + ErrorCode (ZCG-10); Result envelope (ZCG-8); journal (ZCG-9); contract+stamps (ZCG-18); catalog path/lineage/mini_schema/floor (ZCG-15)
   ports/           # SecretStore (ZCG-12); Zeus, LLM, catalog, clock, ids, HTTP, jobs (ZCG-11)
-  adapters/        # secretsenv (ZCG-12); zeushttp headers+auth (ZCG-8, ZCG-17); verbs later (ZCG-13)
+  adapters/        # secretsenv (ZCG-12); zeushttp headers+auth (ZCG-8, ZCG-17); catalogfs (ZCG-15); verbs later (ZCG-13)
   application/     # agent turn, data verbs, typeahead, catalog sync, projectors
   api/             # agent, data, catalog, debug, session
   observability/   # slog family events + REDACT
