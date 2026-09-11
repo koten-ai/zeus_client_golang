@@ -18,6 +18,7 @@ import (
 	_ "github.com/koten-ai/zeus_client_golang/config"
 	_ "github.com/koten-ai/zeus_client_golang/conformance"
 	_ "github.com/koten-ai/zeus_client_golang/domain"
+	_ "github.com/koten-ai/zeus_client_golang/domain/journal"
 	_ "github.com/koten-ai/zeus_client_golang/internal/httpx"
 	_ "github.com/koten-ai/zeus_client_golang/observability"
 	_ "github.com/koten-ai/zeus_client_golang/ports"

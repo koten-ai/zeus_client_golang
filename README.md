@@ -9,10 +9,11 @@ This is **Option A**: a native SDK (no FFI). Same **Client law** as
 the behavioral oracle when implementation details differ; family law still wins
 on stamps, COMPAT, and claim honesty.
 
-> **G0.2 + ZCG-10 + ZCG-5** — hexagonal packages, `New` / `Close` stubs, domain
-> IDs, family `ErrorCode` catalogue, and `security` DefaultRedactor. Ports and
-> adapters stay empty until their HOW_TO phases. Claim remains **candidate**
-> until a human
+> **G0.2 + ZCG-10 + ZCG-5 + ZCG-9** — hexagonal packages, `New` / `Close` stubs,
+> domain IDs, family `ErrorCode` catalogue, `security` DefaultRedactor, and a
+> concurrent-safe `domain/journal` (payload SHA refs, spans, export schema v1).
+> Ports and adapters stay empty until their HOW_TO phases. Claim remains
+> **candidate** until a human
 > [MATRIX](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 > row. Everyday Q&A stays Mode 1; jobs are never auto-promoted from chat.
 
@@ -114,7 +115,7 @@ is the public `New` / `Close` shape; folders follow
 github.com/koten-ai/zeus_client_golang
   client.go runtime.go version.go
   config/          # RuntimeConfig, profiles (ZCG-12)
-  domain/          # ids + ErrorCode (ZCG-10); contract, catalog, layer_a, policy, journal later (ZCG-9)
+  domain/          # ids + ErrorCode (ZCG-10); journal (ZCG-9); contract, catalog, layer_a, policy later
   ports/           # Zeus, LLM, catalog, secrets, clock, ids, HTTP, jobs
   adapters/        # zeushttp, llmopenai, catalogfs, secretsenv, otlp, jobsfake
   application/     # agent turn, data verbs, typeahead, catalog sync, projectors
