@@ -9,13 +9,30 @@ This is **Option A**: a native SDK (no FFI). Same **Client law** as
 the behavioral oracle when implementation details differ; family law still wins
 on stamps, COMPAT, and claim honesty.
 
-> **Scaffold (G0)** — pins + module identity only. Hexagonal tree and public
-> `New` / `Close` are the next gate. Claim remains **candidate** until a human
+> **G0.2** — hexagonal packages + `New` / `Close` stubs. Domain, ports, and
+> adapters are empty on purpose (HOW_TO phases). Claim remains **candidate**
+> until a human
 > [MATRIX](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 > row. Everyday Q&A stays Mode 1; jobs are never auto-promoted from chat.
 
 ```go
-import zeusclient "github.com/koten-ai/zeus_client_golang"
+package main
+
+import (
+    "fmt"
+    "log"
+
+    zeusclient "github.com/koten-ai/zeus_client_golang"
+)
+
+func main() {
+    fmt.Println(zeusclient.Version) // 0.1.0-dev
+    c, err := zeusclient.New(zeusclient.Options{})
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer c.Close()
+}
 ```
 
 ## Claim (family honesty)
@@ -23,6 +40,7 @@ import zeusclient "github.com/koten-ai/zeus_client_golang"
 | Field | Value |
 | --- | --- |
 | **module** | `github.com/koten-ai/zeus_client_golang` |
+| **version** | `0.1.0-dev` (`zeusclient.Version`) |
 | **min Go** | **1.22** |
 | **license** | **BUSL-1.1** (Additional Use Grant: None; Change License Apache-2.0 on 2030-09-10) |
 | **claim_level** | **candidate** (not `supported`) |
@@ -85,13 +103,37 @@ RunJob / replan / store / chaos. Mode 3 is **out of v0.1**.
 One agent turn stays sequential (append-only messages). Parallelism is across
 units, not inside a single bag.
 
+## Package layout
+
+Python V2 hexagonal tree (not a flat `loop.go`). GO_CLIENT_BOOTSTRAP §2 sketch
+is the public `New` / `Close` shape; folders follow
+[IMPLEMENTATION_GUIDE](https://github.com/koten-ai/zeus_client_python/blob/main/docs/V2/IMPLEMENTATION_GUIDE.md) Phase 0.
+
+```text
+github.com/koten-ai/zeus_client_golang
+  client.go runtime.go version.go
+  config/          # RuntimeConfig, profiles (ZCG-12)
+  domain/          # ids, errors, contract, catalog, layer_a, policy, journal, stamps
+  ports/           # Zeus, LLM, catalog, secrets, clock, ids, HTTP, jobs
+  adapters/        # zeushttp, llmopenai, catalogfs, secretsenv, otlp, jobsfake
+  application/     # agent turn, data verbs, typeahead, catalog sync, projectors
+  api/             # agent, data, catalog, debug, session
+  observability/   # slog family events + REDACT
+  security/        # redact, jailbreak, validate
+  internal/httpx/  # shared transport (no process-global client)
+  conformance/     # offline suite adapter (G8)
+```
+
+Domain stays free of `net/http` and provider SDKs. CI enforces that.
+
 ## Local gates
 
 ```bash
 make ci    # fmt vet race test
 ```
 
-Min Go **1.22**. Race is required (GO_CLIENT_BOOTSTRAP §4).
+Min Go **1.22**. Race is required (GO_CLIENT_BOOTSTRAP §4). GitHub Actions
+runs `make ci` on every PR and push to `main`.
 
 ## Sibling layout
 
