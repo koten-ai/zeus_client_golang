@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	_ "github.com/koten-ai/zeus_client_golang/adapters"
+	_ "github.com/koten-ai/zeus_client_golang/adapters/secretsenv"
 	_ "github.com/koten-ai/zeus_client_golang/api"
 	_ "github.com/koten-ai/zeus_client_golang/application"
 	_ "github.com/koten-ai/zeus_client_golang/config"
