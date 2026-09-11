@@ -23,13 +23,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          # No go.sum yet (stdlib only). Re-enable cache when the first dep lands.
+          cache: false
 
       - name: gofmt already clean
         run: |
