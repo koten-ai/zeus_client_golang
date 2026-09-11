@@ -1,0 +1,12 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "status": 200,
+  "headers": {
+    "X-Zeus-Req-Id": "f6000000-0000-4000-8000-000000000006",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "status": "ok",
+    "accepted": true
+  }
+}

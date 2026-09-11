@@ -117,9 +117,10 @@ func (c *Client) Agent() *api.AgentAPI {
 	return api.NewAgentAPI(c)
 }
 
-// Session is the durable-session facade (create / continue / rehydrate).
-// Trace POST is ZCG-16. Runtime has no dedicated session port — the API
-// lazy-opens adapters/zeushttp.SessionClient from Config + HTTP.
+// Session is the durable-session facade (create / continue / rehydrate / trace).
+// Trace joins Detective on the dispatch hop req_id (ZCG-16). Runtime has no
+// dedicated session port — the API lazy-opens adapters/zeushttp.SessionClient
+// from Config + HTTP.
 func (c *Client) Session() *api.SessionAPI {
 	if c == nil || c.rt == nil {
 		return nil
@@ -132,6 +133,7 @@ func (c *Client) Session() *api.SessionAPI {
 		Config:   cfg,
 		Version:  Version,
 		Identity: cfg.Client,
+		Journal:  c.Journal(),
 	})
 }
 

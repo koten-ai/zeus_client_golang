@@ -31,7 +31,8 @@ type SessionHTTPResult struct {
 }
 
 // SessionClient is the HTTP surface for /v2/session* (Python HttpxSessionClient).
-// Server mints session_id; this client never invents one. Trace POST is ZCG-16.
+// Server mints session_id; this client never invents one. PostTrace joins
+// Detective on the dispatch hop req_id (ZCG-16).
 type SessionClient struct {
 	endpoint config.ZeusEndpointConfig
 	secrets  ports.SecretStore
@@ -272,6 +273,74 @@ func (c *SessionClient) ContinueTurn(ctx context.Context, req SessionContinueReq
 	return c.post(ctx, postURL, headers, payload, map[int]struct{}{200: {}}, RewindQueryParams(req.Rewind))
 }
 
+// PostTrace POSTs /v2/session/trace (Python post_trace).
+// req_id is the dispatch Zeus hop id (join key) — not a newly minted client id.
+// Does not set X-Zeus-Req-Id unless PreMint is on; Zeus mints, client captures echo.
+func (c *SessionClient) PostTrace(ctx context.Context, req SessionTraceRequest) (SessionHTTPResult, error) {
+	if err := c.guard(ctx); err != nil {
+		return SessionHTTPResult{}, err
+	}
+	sid := strings.TrimSpace(req.SessionID)
+	if sid == "" || req.ClientRound <= 0 {
+		return SessionHTTPResult{OK: false, Error: "bad trace params"}, nil
+	}
+	base := strings.TrimRight(c.endpoint.URL, "/")
+	postURL := base + "/v2/session/trace"
+	zresp := copyAnyMap(req.ZeusResponse)
+	stamp := c.sinkStamp(sid)
+	for k, v := range stamp {
+		if _, ok := zresp[k]; !ok {
+			zresp[k] = v
+		}
+	}
+	turns := req.Turns
+	if turns == nil {
+		turns = []any{}
+	}
+	outcome := req.Outcome
+	if outcome == "" {
+		outcome = "ok"
+	}
+	payload := map[string]any{
+		"session_id":    sid,
+		"round":         req.ClientRound,
+		"req_id":        req.ReqID,
+		"contract_id":   req.ContractID,
+		"contract_hash": req.ContractHash,
+		"chat_request":  mapOrEmpty(req.ChatRequest),
+		"turns":         turns,
+		"zeus_response": zresp,
+		"outcome":       outcome,
+	}
+	for k, v := range stamp {
+		payload[k] = v
+	}
+	if tid := strings.TrimSpace(req.TurnID); tid != "" {
+		payload["turn_id"] = tid
+	}
+	if req.Rewind {
+		payload["rewind"] = true
+	}
+	headers, err := c.headers(ctx, req.Mode, req.Headers, req.Target)
+	if err != nil {
+		return SessionHTTPResult{}, err
+	}
+	result, err := c.post(ctx, postURL, headers, payload, map[int]struct{}{200: {}, 201: {}}, RewindQueryParams(req.Rewind))
+	level := "info"
+	res := "ok"
+	if err != nil || !result.OK {
+		level = "error"
+		res = "error"
+	}
+	c.emit(level, "zeus_client.session.trace", map[string]any{
+		"session.id":       sid,
+		"req_id":           req.ReqID,
+		"http.status_code": result.StatusCode,
+		"result":           res,
+	})
+	return result, err
+}
+
 // SessionCreateRequest is POST /v2/session kwargs.
 type SessionCreateRequest struct {
 	ContractID   string
@@ -294,6 +363,25 @@ type SessionContinueRequest struct {
 	Mode        string
 	Target      config.DataTarget
 	Rewind      bool
+}
+
+// SessionTraceRequest is POST /v2/session/trace kwargs (Python post_trace).
+// ReqID is the dispatch hop id (G4.2 join key), not the trace hop's own id.
+type SessionTraceRequest struct {
+	SessionID    string
+	ClientRound  int
+	ReqID        string
+	ContractID   string
+	ContractHash string
+	ChatRequest  map[string]any
+	Turns        []any
+	ZeusResponse map[string]any
+	Outcome      string
+	Headers      map[string]string
+	Mode         string
+	Target       config.DataTarget
+	Rewind       bool
+	TurnID       string
 }
 
 func (c *SessionClient) post(ctx context.Context, postURL string, headers map[string]string, payload map[string]any, okCodes map[int]struct{}, query map[string]string) (SessionHTTPResult, error) {
@@ -422,4 +510,12 @@ func mapOrEmpty(m map[string]any) map[string]any {
 		return map[string]any{}
 	}
 	return m
+}
+
+func copyAnyMap(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }

@@ -124,8 +124,8 @@ github.com/koten-ai/zeus_client_golang
   config/          # RuntimeConfig, profiles, loader (ZCG-12)
   domain/          # ids + ErrorCode (ZCG-10); Result envelope (ZCG-8); journal (ZCG-9); contract+stamps (ZCG-18); catalog path/lineage/mini_schema/floor (ZCG-15); rules freeze + inject proof + tool trail (ZCG-20); SessionHandle (ZCG-19)
   ports/           # SecretStore (ZCG-12); Zeus, LLM, catalog, clock, ids, HTTP, jobs (ZCG-11)
-  adapters/        # secretsenv (ZCG-12); zeushttp headers+auth+verbs (ZCG-8, ZCG-17, ZCG-13); session HTTP (ZCG-19); catalogfs (ZCG-15)
-  application/     # data verbs + typeahead (ZCG-13); Bag B inject (ZCG-20); session lifecycle (ZCG-19); agent turn later
+  adapters/        # secretsenv (ZCG-12); zeushttp headers+auth+verbs (ZCG-8, ZCG-17, ZCG-13); session HTTP (ZCG-19, ZCG-16); catalogfs (ZCG-15)
+  application/     # data verbs + typeahead (ZCG-13); Bag B inject (ZCG-20); session lifecycle (ZCG-19); projectors (ZCG-16); agent turn later
   api/             # agent, data, catalog, debug, session
   observability/   # slog family events + REDACT
   security/        # DefaultRedactor + RedactAttrs (ZCG-5); jailbreak later

@@ -212,3 +212,156 @@ func TestCreateRewindQueryAndBody(t *testing.T) {
 		t.Fatalf("body rewind %v", body["rewind"])
 	}
 }
+
+func TestHTTPPostTraceG42DispatchReqID(t *testing.T) {
+	doc := loadWire(t, filepath.Join("testdata", "wire", "v2_session_trace.response.json"))
+	const dispatch = "b2000000-0000-4000-8000-000000000002"
+	var sawBody map[string]any
+	var sawHeader http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method %s", r.Method)
+		}
+		if r.URL.Path != "/v2/session/trace" {
+			t.Errorf("path %s", r.URL.Path)
+		}
+		sawHeader = r.Header.Clone()
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &sawBody)
+		for k, v := range doc.Headers {
+			w.Header().Set(k, v)
+		}
+		w.WriteHeader(doc.Status)
+		_, _ = w.Write(doc.Body)
+	}))
+	defer srv.Close()
+	c := sessionClient(t, nil, srv.URL)
+	result, err := c.PostTrace(context.Background(), SessionTraceRequest{
+		SessionID:    "zsess_mock_turn_001",
+		ClientRound:  2,
+		ReqID:        dispatch,
+		ContractID:   "mock_analytics_b5",
+		ContractHash: "mock:00000000000000000000000000000000",
+		ChatRequest:  map[string]any{},
+		Turns:        []any{},
+		ZeusResponse: map[string]any{"verb": "search", "status": 200},
+		Outcome:      "ok",
+		Mode:         "analytics",
+		TurnID:       "turn-join-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.OK || result.StatusCode != 200 {
+		t.Fatalf("%+v", result)
+	}
+	if sawBody["req_id"] != dispatch {
+		t.Fatalf("join key %v", sawBody["req_id"])
+	}
+	if sawBody["session_id"] != "zsess_mock_turn_001" {
+		t.Fatalf("sid %v", sawBody["session_id"])
+	}
+	if sawBody["user"] != ProductUser {
+		t.Fatal("product stamp")
+	}
+	zresp, _ := sawBody["zeus_response"].(map[string]any)
+	if zresp["user"] != ProductUser {
+		t.Fatalf("zresp stamp %v", zresp)
+	}
+	if sawHeader.Get(domain.ReqIDHeader) != "" {
+		t.Fatalf("must not mint %s, got %q", domain.ReqIDHeader, sawHeader.Get(domain.ReqIDHeader))
+	}
+	if result.ReqID != "f6000000-0000-4000-8000-000000000006" {
+		t.Fatalf("echo %q", result.ReqID)
+	}
+	if result.Body["accepted"] != true {
+		t.Fatalf("body %v", result.Body)
+	}
+}
+
+func TestPostTraceStampsAndKeepsDispatchReqID(t *testing.T) {
+	h := &recHTTP{resp: ports.HTTPResponse{
+		Status:  201,
+		Headers: map[string]string{domain.ReqIDHeader: "echo-trace"},
+		Body:    []byte(`{"contract_status":"match"}`),
+	}}
+	c := sessionClient(t, h, "http://zeus.test:8080")
+	dispatch := "a91c2e10-0c44-4f11-9b2e-88e0d1f3aa01"
+	_, err := c.PostTrace(context.Background(), SessionTraceRequest{
+		SessionID:    "sess_1",
+		ClientRound:  1,
+		ReqID:        dispatch,
+		ContractID:   "cid",
+		ContractHash: "md5:aaa",
+		ChatRequest:  map[string]any{},
+		TurnID:       "turn-join-1",
+		ZeusResponse: map[string]any{"status": 200},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(strings.Split(h.last.URL, "?")[0], "/v2/session/trace") {
+		t.Fatalf("url %s", h.last.URL)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(h.last.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["req_id"] != dispatch {
+		t.Fatalf("req_id %v", body["req_id"])
+	}
+	if body["session_id"] != "sess_1" || body["turn_id"] != "turn-join-1" {
+		t.Fatalf("%v", body)
+	}
+	if body["user"] != ProductUser {
+		t.Fatal("product stamp")
+	}
+	zresp, _ := body["zeus_response"].(map[string]any)
+	if zresp["user"] != ProductUser {
+		t.Fatalf("zresp %v", zresp)
+	}
+}
+
+func TestPostTraceRewindQueryAndBody(t *testing.T) {
+	h := &recHTTP{resp: ports.HTTPResponse{
+		Status:  200,
+		Headers: map[string]string{domain.ReqIDHeader: "r-trw"},
+		Body:    []byte(`{"status":"ok","accepted":true}`),
+	}}
+	c := sessionClient(t, h, "http://zeus.test:8080")
+	_, err := c.PostTrace(context.Background(), SessionTraceRequest{
+		SessionID:   "sid-rw",
+		ClientRound: 2,
+		ReqID:       "disp-1",
+		Rewind:      true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.last.URL, "rewind=true") {
+		t.Fatalf("url %s", h.last.URL)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(h.last.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["rewind"] != true {
+		t.Fatalf("body rewind %v", body["rewind"])
+	}
+}
+
+func TestPostTraceBadParamsNoHTTP(t *testing.T) {
+	h := &recHTTP{resp: ports.HTTPResponse{Status: 200, Body: []byte(`{}`)}}
+	c := sessionClient(t, h, "http://zeus.test:8080")
+	r1, err := c.PostTrace(context.Background(), SessionTraceRequest{ClientRound: 1, ReqID: "x"})
+	if err != nil || r1.OK || r1.Error != "bad trace params" {
+		t.Fatalf("%+v %v", r1, err)
+	}
+	r2, err := c.PostTrace(context.Background(), SessionTraceRequest{SessionID: "sid", ClientRound: 0, ReqID: "x"})
+	if err != nil || r2.OK {
+		t.Fatalf("%+v %v", r2, err)
+	}
+	if h.count() != 0 {
+		t.Fatal("HTTP sent")
+	}
+}

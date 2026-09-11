@@ -55,7 +55,7 @@ type CommitOptions struct {
 }
 
 // SessionLifecycle is create / rehydrate / dead-sid recovery / commit turn.
-// Server mints session ids. Trace POST is ZCG-16.
+// Server mints session ids. Session-trace projector is application/projectors (ZCG-16).
 type SessionLifecycle struct {
 	Client *zeushttp.SessionClient
 	Target config.DataTarget

@@ -1,0 +1,23 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "method": "POST",
+  "path": "/v2/session/trace",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "session_id": "zsess_mock_turn_001",
+    "round": 2,
+    "req_id": "b2000000-0000-4000-8000-000000000002",
+    "contract_id": "mock_analytics_b5",
+    "contract_hash": "mock:00000000000000000000000000000000",
+    "chat_request": {},
+    "turns": [],
+    "zeus_response": {
+      "verb": "search",
+      "status": 200
+    },
+    "outcome": "ok"
+  },
+  "notes": "Join key is dispatch req_id so Detective can attach external session panel"
+}

@@ -5,5 +5,5 @@
 // ZCG-11 lands stub ZeusAPI / AgentAPI handles that hold the Client. ZCG-15
 // lands CatalogAPI (mock load, extract stamp, public mini_schema). ZCG-13
 // fills ZeusAPI Call / Search / Find / Get / Project + SearchSuggest. ZCG-19
-// fills SessionAPI Create / Continue / Rehydrate (trace POST is ZCG-16).
+// fills SessionAPI Create / Continue / Rehydrate. ZCG-16 fills SessionAPI.Trace.
 package api

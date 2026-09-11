@@ -8,16 +8,18 @@ import (
 
 	"github.com/koten-ai/zeus_client_golang/adapters/zeushttp"
 	"github.com/koten-ai/zeus_client_golang/application"
+	"github.com/koten-ai/zeus_client_golang/application/projectors"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
+	"github.com/koten-ai/zeus_client_golang/domain/journal"
 	"github.com/koten-ai/zeus_client_golang/ports"
 )
 
 const sessionAPIComponent = "api.session"
 
-// SessionAPI is the Mode 1 session-plane facade (create / continue / rehydrate).
-// Trace POST is ZCG-16. Semantic cache is later. The handle holds the Client
-// without importing the root package.
+// SessionAPI is the Mode 1 session-plane facade (create / continue / rehydrate / trace).
+// Trace joins Detective on the dispatch hop req_id (ZCG-16). Semantic cache is later.
+// The handle holds the Client without importing the root package.
 type SessionAPI struct {
 	host any
 	opts SessionOptions
@@ -34,6 +36,7 @@ type SessionOptions struct {
 	Config   config.RuntimeConfig
 	Version  string
 	Identity config.ClientIdentity
+	Journal  journal.ExecutionJournal
 	Log      func(level, msg string, attrs map[string]any)
 }
 
@@ -113,6 +116,34 @@ func (s *SessionAPI) Commit(ctx context.Context, handle domain.SessionHandle, op
 		opts.Mode = s.opts.Config.Settings.Mode
 	}
 	return life.Commit(ctx, handle, opts)
+}
+
+// Trace POSTs /v2/session/trace via the session-trace projector (ZCG-16).
+// Soft-fail: never returns a raising error that would abort a successful turn.
+func (s *SessionAPI) Trace(ctx context.Context, opts projectors.ProjectOptions) projectors.SessionTraceProjectResult {
+	if s == nil {
+		return projectors.SessionTraceProjectResult{OK: false, Errors: []string{"session API is nil"}}
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if opts.Journal == nil {
+		opts.Journal = s.opts.Journal
+	}
+	if opts.Log == nil {
+		opts.Log = s.opts.Log
+	}
+	if opts.Mode == "" {
+		opts.Mode = s.opts.Config.Settings.Mode
+	}
+	if opts.Target == (config.DataTarget{}) {
+		opts.Target = s.opts.Config.Target
+	}
+	cli, err := s.client()
+	if err != nil {
+		return projectors.ProjectSessionTrace(ctx, nil, opts)
+	}
+	return projectors.ProjectSessionTrace(ctx, cli, opts)
 }
 
 func (s *SessionAPI) lifecycle() (*application.SessionLifecycle, error) {
