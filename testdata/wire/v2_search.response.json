@@ -1,0 +1,29 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "status": 200,
+  "headers": {
+    "X-Zeus-Req-Id": "b2000000-0000-4000-8000-000000000002",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "hits": [
+      {
+        "id": "beer:fruit-01",
+        "score": 1.2,
+        "fields": {
+          "name": "Fruit Stand Ale",
+          "type": "Beer"
+        }
+      },
+      {
+        "id": "beer:fruit-02",
+        "score": 1.0,
+        "fields": {
+          "name": "Berry Wheat",
+          "type": "Beer"
+        }
+      }
+    ],
+    "total": 2
+  }
+}

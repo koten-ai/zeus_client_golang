@@ -1,0 +1,20 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "status": 409,
+  "headers": {
+    "X-Zeus-Req-Id": "40900000-0000-4000-8000-000000000409",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "error": "contract_required",
+    "message": "contract hash mismatch or missing",
+    "contract_status": "mismatch"
+  },
+  "client_expect": {
+    "result": false,
+    "error_type": "zeus_http",
+    "retryable": false,
+    "must_surface_req_id": true,
+    "must_not_forge_hash": true
+  }
+}

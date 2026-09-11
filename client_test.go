@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
@@ -60,6 +61,20 @@ func (f *fakeZeus) CallVerb(_ context.Context, _ ports.VerbRequest) (ports.VerbH
 	return ports.VerbHopResult{}, domain.New(domain.CodeNotImplemented, "test.zeus")
 }
 
+type fakeZeusHop struct {
+	n   atomic.Int32
+	hop ports.VerbHopResult
+}
+
+func (f *fakeZeusHop) ResolveAuth(_ context.Context, _ config.DataTarget, _ bool) (ports.AuthContext, error) {
+	return ports.AuthContext{Mode: "none", Headers: map[string]string{}}, nil
+}
+
+func (f *fakeZeusHop) CallVerb(_ context.Context, _ ports.VerbRequest) (ports.VerbHopResult, error) {
+	f.n.Add(1)
+	return f.hop, nil
+}
+
 func (f *fakeZeus) Close(_ context.Context) error {
 	f.closed.Store(true)
 	return nil
@@ -68,6 +83,7 @@ func (f *fakeZeus) Close(_ context.Context) error {
 var (
 	_ ports.HttpPort = (*fakeHTTP)(nil)
 	_ ports.ZeusPort = (*fakeZeus)(nil)
+	_ ports.ZeusPort = (*fakeZeusHop)(nil)
 	_ ports.Closer   = (*fakeZeus)(nil)
 	_ ports.Closer   = (*fakeHTTP)(nil)
 )
@@ -253,6 +269,39 @@ func TestNewSnapshotsInjectedConfig(t *testing.T) {
 	}
 	if !snap.Settings.StickyFlags["keep"] {
 		t.Fatal("lost keep")
+	}
+}
+
+func TestClientZeusSearchAndPipeline(t *testing.T) {
+	z := &fakeZeusHop{
+		hop: ports.VerbHopResult{
+			OK: true, StatusCode: 200,
+			ReqID: "b2000000-0000-4000-8000-000000000002",
+			Body:  map[string]any{"hits": []any{}, "total": 0},
+		},
+	}
+	c, err := New(Options{Env: map[string]string{}, Zeus: z})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	result, err := c.Zeus().Search(context.Background(), map[string]any{"q": "fruit beer"}, api.CallOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.OK || result.ReqID != "b2000000-0000-4000-8000-000000000002" {
+		t.Fatalf("%+v", result)
+	}
+	_, err = c.Zeus().Call(context.Background(), "pipeline", nil, api.CallOptions{})
+	if err == nil {
+		t.Fatal("pipeline")
+	}
+	de, ok := domain.AsError(err)
+	if !ok || de.Code != domain.CodeZeusPipelineNotOnDirect {
+		t.Fatalf("%v", err)
+	}
+	if z.n.Load() != 1 {
+		t.Fatalf("pipeline must not CallVerb, n=%d", z.n.Load())
 	}
 }
 

@@ -142,10 +142,10 @@ func (r *AuthResolver) ResolveAuth(ctx context.Context, target config.DataTarget
 	}
 }
 
-// CallVerb is ZCG-13. AuthResolver only mints headers.
+// CallVerb is not dispatched here — use Port (ZCG-13). AuthResolver only mints headers.
 func (r *AuthResolver) CallVerb(_ context.Context, _ ports.VerbRequest) (ports.VerbHopResult, error) {
 	return ports.VerbHopResult{}, domain.New(domain.CodeNotImplemented, authComponent,
-		domain.WithMessage("CallVerb is ZCG-13 (P-Direct); auth resolver does not dispatch verbs"))
+		domain.WithMessage("CallVerb is adapters/zeushttp.Port (ZCG-13); auth resolver does not dispatch verbs"))
 }
 
 // Close releases an owned HTTP client. Injected HttpPort is left for the owner.

@@ -15,7 +15,8 @@ import (
 // non-nil, is snapshotted and used as-is (Load is skipped).
 //
 // Journal / Secrets / Clock / IDs / Redactor / HTTP default when nil.
-// Zeus, LLM, Catalog, and Jobs stay nil unless injected — no auth/verbs here.
+// Zeus, LLM, Catalog, and Jobs stay nil unless injected. ZeusAPI lazy-opens
+// adapters/zeushttp.Port from Config when Services.Zeus is nil.
 type Options struct {
 	Profile    string
 	ConfigPath string
@@ -78,12 +79,21 @@ func (c *Client) Config() config.Snapshot {
 	return c.rt.configSnapshot()
 }
 
-// Zeus is the Mode 2 data-plane facade. Network methods land in ZCG-13.
+// Zeus is the Mode 2 data-plane facade (search / find / get / project / call).
 func (c *Client) Zeus() *api.ZeusAPI {
-	if c == nil {
+	if c == nil || c.rt == nil {
 		return nil
 	}
-	return api.NewZeusAPI(c)
+	svc := c.Services()
+	return api.NewZeusAPIWith(c, api.ZeusOptions{
+		Zeus:     svc.Zeus,
+		HTTP:     svc.HTTP,
+		Secrets:  svc.Secrets,
+		Journal:  c.Journal(),
+		Config:   c.Config(),
+		Version:  Version,
+		Redactor: svc.Redactor,
+	})
 }
 
 // Catalog is the catalog facade (load / info / contract.hash / mini_schema).
