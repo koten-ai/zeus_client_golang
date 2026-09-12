@@ -1,0 +1,44 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "description": "Ordered LLM outputs for L1 single-tool then terminate — adapter feeds these instead of a live provider",
+  "rounds": [
+    {
+      "round": 1,
+      "assistant": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_search_1",
+            "type": "function",
+            "function": {
+              "name": "search",
+              "arguments": "{\"q\":\"fruit beer\",\"limit\":8}"
+            }
+          }
+        ]
+      },
+      "zeus_mock": {
+        "path": "v2_search.response.json",
+        "req_id": "b2000000-0000-4000-8000-000000000002"
+      }
+    },
+    {
+      "round": 2,
+      "assistant": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_return_1",
+            "type": "function",
+            "function": {
+              "name": "return",
+              "arguments": "{\"summary\":\"Found 2 fruit beers including Fruit Stand Ale.\",\"confidence\":\"high\",\"query_decomposition\":{\"intent\":\"List\",\"entity\":\"Beer\"},\"decomposition\":{\"intent\":\"list fruit beers\",\"targets\":[{\"entity_type\":\"Beer\"}],\"predicates\":{},\"output\":\"rows\"},\"business_rules_triggers\":{\"no_invent_data\":true},\"policy_action\":\"answer\",\"jail_break_attempt\":0.0}"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

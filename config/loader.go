@@ -52,6 +52,13 @@ func fromRuntimeMapping(data map[string]any, profile string) (RuntimeConfig, err
 	base := Default()
 	defaultKeyEnv := asString(llm["api_key_env"], base.LLM.APIKeyEnv)
 	roles := parseLLMRoles(llm["roles"], defaultKeyEnv)
+	provider := asString(llm["provider"], "xai")
+	baseDefault := "https://api.x.ai/v1"
+	modelDefault := "grok-4-1-non-reasoning"
+	if strings.EqualFold(provider, "custom") {
+		baseDefault = ""
+		modelDefault = ""
+	}
 
 	authMode := AuthMode(strings.ToLower(asString(z["auth_mode"], string(base.Zeus.AuthMode))))
 	if !validAuthMode(authMode) {
@@ -102,10 +109,11 @@ func fromRuntimeMapping(data map[string]any, profile string) (RuntimeConfig, err
 		Collection: asString(t["collection"], "_default"),
 	}
 	cfg.LLM = LlmProviderConfig{
-		Provider:            asString(llm["provider"], "xai"),
-		BaseURL:             rstripSlash(asString(llm["base_url"], "https://api.x.ai/v1")),
-		Model:               asString(llm["model"], "grok-4-1-non-reasoning"),
+		Provider:            provider,
+		BaseURL:             rstripSlash(asString(llm["base_url"], baseDefault)),
+		Model:               asString(llm["model"], modelDefault),
 		APIKeyEnv:           defaultKeyEnv,
+		APIStyle:            asString(llm["api_style"], ""),
 		ContextWindowTokens: asInt(llm["context_window_tokens"], 128000),
 		ContextSoftLimit:    asFloat(llm["context_soft_limit"], 0.8),
 		TimeoutS:            asFloat(llm["timeout_s"], 120),

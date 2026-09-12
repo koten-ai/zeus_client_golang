@@ -14,6 +14,7 @@ import (
 
 	_ "github.com/koten-ai/zeus_client_golang/adapters"
 	_ "github.com/koten-ai/zeus_client_golang/adapters/catalogfs"
+	_ "github.com/koten-ai/zeus_client_golang/adapters/llmopenai"
 	_ "github.com/koten-ai/zeus_client_golang/adapters/secretsenv"
 	_ "github.com/koten-ai/zeus_client_golang/adapters/zeushttp"
 	_ "github.com/koten-ai/zeus_client_golang/api"

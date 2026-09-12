@@ -41,6 +41,9 @@ func overlayPins(base RuntimeConfig, data map[string]any) RuntimeConfig {
 		if v := asString(llm["api_key_env"], ""); v != "" {
 			base.LLM.APIKeyEnv = v
 		}
+		if v := asString(llm["api_style"], ""); v != "" {
+			base.LLM.APIStyle = v
+		}
 		if llm["context_window_tokens"] != nil {
 			base.LLM.ContextWindowTokens = asInt(llm["context_window_tokens"], base.LLM.ContextWindowTokens)
 		}

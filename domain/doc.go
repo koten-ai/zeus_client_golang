@@ -11,5 +11,6 @@
 // hashes). ZCG-15 lands catalog path/lineage/mini_schema/floor (fail-closed).
 // ZCG-20 lands named rules freeze, tool-trail Bag B, and inject proof
 // (BRIEF/MINI sha12). ZCG-19 lands SessionHandle (server-minted id).
+// ZCG-14 lands LLM classify (050010–050018). Later-wins llm roles live in config.
 // Control-plane splice is application.
 package domain

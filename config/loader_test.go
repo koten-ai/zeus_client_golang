@@ -369,6 +369,29 @@ func TestPinsProductionRejectedUntilAuthSet(t *testing.T) {
 	}
 }
 
+func TestLoadCustomLLMDoesNotInventHost(t *testing.T) {
+	p := writeJSON(t, map[string]any{
+		"zeus": map[string]any{"url": "http://127.0.0.1:8080", "auth_mode": "none"},
+		"llm":  map[string]any{"provider": "custom", "api_style": "openai_compatible"},
+	})
+	cfg, err := Load(p, "development", map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LLM.Provider != "custom" {
+		t.Fatalf("provider %q", cfg.LLM.Provider)
+	}
+	if cfg.LLM.BaseURL != "" {
+		t.Fatalf("must not invent host %q", cfg.LLM.BaseURL)
+	}
+	if cfg.LLM.Model != "" {
+		t.Fatalf("must not invent model %q", cfg.LLM.Model)
+	}
+	if cfg.LLM.APIStyle != "openai_compatible" {
+		t.Fatalf("api_style %q", cfg.LLM.APIStyle)
+	}
+}
+
 func TestLLMAPIKeyInFileIsIgnored(t *testing.T) {
 	p := writeJSON(t, map[string]any{
 		"llm": map[string]any{"api_key": "sk-should-not-load", "api_key_env": "XAI_API_KEY"},

@@ -99,6 +99,7 @@ type LlmProviderConfig struct {
 	BaseURL             string
 	Model               string
 	APIKeyEnv           string
+	APIStyle            string // custom only; default openai_compatible in the adapter
 	ContextWindowTokens int
 	ContextSoftLimit    float64
 	TimeoutS            float64
@@ -107,8 +108,8 @@ type LlmProviderConfig struct {
 
 func (l LlmProviderConfig) String() string {
 	return fmt.Sprintf(
-		"LlmProviderConfig(provider=%q, base_url=%q, model=%q, api_key_env=%q, context_window_tokens=%d, context_soft_limit=%v, timeout_s=%v, roles=%v)",
-		l.Provider, l.BaseURL, l.Model, l.APIKeyEnv, l.ContextWindowTokens, l.ContextSoftLimit, l.TimeoutS, l.Roles,
+		"LlmProviderConfig(provider=%q, base_url=%q, model=%q, api_key_env=%q, api_style=%q, context_window_tokens=%d, context_soft_limit=%v, timeout_s=%v, roles=%v)",
+		l.Provider, l.BaseURL, l.Model, l.APIKeyEnv, l.APIStyle, l.ContextWindowTokens, l.ContextSoftLimit, l.TimeoutS, l.Roles,
 	)
 }
 
@@ -466,6 +467,7 @@ func (c RuntimeConfig) ToPublicDict() map[string]any {
 			"base_url":              c.LLM.BaseURL,
 			"model":                 c.LLM.Model,
 			"api_key_env":           c.LLM.APIKeyEnv,
+			"api_style":             nilIfEmpty(c.LLM.APIStyle),
 			"context_window_tokens": c.LLM.ContextWindowTokens,
 			"context_soft_limit":    c.LLM.ContextSoftLimit,
 			"timeout_s":             c.LLM.TimeoutS,
