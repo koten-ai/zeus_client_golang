@@ -1,0 +1,19 @@
+{
+  "id": "L2.triggers.object_normalize.001",
+  "level": "L2",
+  "family": "triggers",
+  "floor": "client-floor-5",
+  "maps_to": ["ZC-WISH-004", "API_TRIGGER", "CHECKLIST-C"],
+  "title": "business_rules_triggers object normalize; missing key is false",
+  "pins": {
+    "suite_version": "conformance-0.2-dev",
+    "mock": true
+  },
+  "input": {
+    "fixture": "fixture.json"
+  },
+  "expect": {
+    "result": true,
+    "all_rows_match": true
+  }
+}

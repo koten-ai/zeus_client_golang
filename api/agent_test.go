@@ -33,6 +33,14 @@ func TestAgentRunTurnRequiresLLM(t *testing.T) {
 	}
 }
 
+func TestAgentDefaultMiddlewareIncludesSecurityHooks(t *testing.T) {
+	a := NewAgentAPIWith("host", AgentOptions{})
+	mw := a.Middleware()
+	if mw == nil || len(mw.Items) != 1 || mw.Items[0].Name() != "security" {
+		t.Fatalf("%+v", mw)
+	}
+}
+
 func TestAgentRunTurnDirectAnswer(t *testing.T) {
 	a := NewAgentAPIWith("host", AgentOptions{
 		LLM: stubLLM{resp: ports.LlmResponse{Content: "Hello from Zeus."}},

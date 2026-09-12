@@ -192,7 +192,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 	}
 	mw := opts.Middleware
 	if mw == nil {
-		mw = &MiddlewareChain{}
+		mw = DefaultMiddlewareChain()
 	}
 	floor := opts.ClientFloor
 	if floor == "" {
@@ -321,8 +321,10 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 	messages = append(messages, map[string]any{"role": "user", "content": req.Message})
 
 	mwCtx.Data["catalog_tool_names"] = catalogToolNames(tools)
+	mwCtx.Data["prior_user_texts"] = priorUserTexts(req.PriorMessages)
 	mw.OnTurnStart(mwCtx)
 	notes = append(notes, mwCtx.takeNotes()...)
+	notes = appendJailbreakHitNote(notes, mwCtx)
 
 	var (
 		answer           string
@@ -485,6 +487,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 			}
 			steps = append(steps, outcome.Steps...)
 			notes = append(notes, mwCtx.takeNotes()...)
+			notes = appendJailbreakHitNote(notes, mwCtx)
 			if outcome.ReturnArgs != nil {
 				lastReturnArgs = outcome.ReturnArgs
 			}
@@ -515,6 +518,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 			}
 			if !aiProcess && outcome.ToolsWithPayload > 0 {
 				candidate := strings.TrimSpace(outcome.ToolArgSummary)
+				InspectJailbreak(mwCtx, candidate, "tool_arg_summary")
 				if mwCtx.boolData("hooks_must_refuse") {
 					notes = append(notes, "jailbreak.cheap_path_leak")
 					answer = ""
@@ -567,6 +571,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 		})
 		parsed = domain.ApplyPackSchema(parsed, req.PackSchema)
 		layer = &parsed
+		InspectJailbreak(mwCtx, layer.Summary, "summary")
 	}
 	rawAnswer := answer
 	prePolicy := rawAnswer
@@ -579,6 +584,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 		}
 		prePolicy = domain.UserFacingAnswer(rawAnswer, "", layerSummary)
 	}
+	InspectJailbreak(mwCtx, prePolicy, "answer")
 
 	hooksScore := mwCtx.floatData("hooks_jailbreak_score")
 	hooksRefuse := mwCtx.boolData("hooks_must_refuse")
@@ -1025,6 +1031,16 @@ func executeToolCalls(ctx context.Context, o executeToolOpts) (ToolRoundOutcome,
 		if ov, ok := o.mwCtx.Data["tool_body_override"].(string); ok && strings.TrimSpace(ov) != "" {
 			delete(o.mwCtx.Data, "tool_body_override")
 			text = ov
+			var parsed any
+			if json.Unmarshal([]byte(ov), &parsed) == nil {
+				if m, ok := parsed.(map[string]any); ok {
+					body = m
+				} else {
+					body = map[string]any{"error": "untrusted_tool_payload"}
+				}
+			} else {
+				body = map[string]any{"error": "untrusted_tool_payload"}
+			}
 		}
 		if truncated, did := truncateToolJSON(text); did {
 			text = truncated
@@ -1242,6 +1258,37 @@ func toolsFromRequest(req TurnRequest) []map[string]any {
 		return mapsFromAny(verbs)
 	}
 	return nil
+}
+
+func priorUserTexts(msgs []map[string]any) []string {
+	out := make([]string, 0, len(msgs))
+	for _, pm := range msgs {
+		if pm == nil {
+			continue
+		}
+		if asString(pm["role"]) != "user" {
+			continue
+		}
+		out = append(out, asString(pm["content"]))
+	}
+	return out
+}
+
+func appendJailbreakHitNote(notes []string, ctx *MiddlewareContext) []string {
+	if ctx == nil || ctx.Data == nil {
+		return notes
+	}
+	hits := asStringSlice(ctx.Data["jailbreak_hits"])
+	if len(hits) == 0 {
+		return notes
+	}
+	note := "jailbreak.hits=" + strings.Join(hits, ",")
+	for _, n := range notes {
+		if n == note {
+			return notes
+		}
+	}
+	return append(notes, note)
 }
 
 func catalogToolNames(tools []map[string]any) map[string]bool {

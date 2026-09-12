@@ -1,0 +1,20 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "rows": [
+    {
+      "id": "object_sparse",
+      "raw": { "no_invent_data": true, "ignore_system": false },
+      "expect": { "no_invent_data": true, "ignore_system": false }
+    },
+    {
+      "id": "null_is_empty",
+      "raw": null,
+      "expect": {}
+    },
+    {
+      "id": "bool_coerce",
+      "raw": { "no_secrets": 1, "no_prompt_dump": 0 },
+      "expect": { "no_secrets": true, "no_prompt_dump": false }
+    }
+  ]
+}

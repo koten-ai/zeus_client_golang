@@ -40,12 +40,12 @@ func NewAgentAPI(host any) *AgentAPI {
 	if host == nil {
 		return nil
 	}
-	return &AgentAPI{host: host, middleware: &application.MiddlewareChain{}}
+	return &AgentAPI{host: host, middleware: application.DefaultMiddlewareChain()}
 }
 
 // NewAgentAPIWith binds host plus ports/config (Client.Agent).
 func NewAgentAPIWith(host any, opts AgentOptions) *AgentAPI {
-	return &AgentAPI{host: host, opts: opts, middleware: &application.MiddlewareChain{}}
+	return &AgentAPI{host: host, opts: opts, middleware: application.DefaultMiddlewareChain()}
 }
 
 // Host is the bound Client. Nil-safe.
@@ -56,7 +56,7 @@ func (a *AgentAPI) Host() any {
 	return a.host
 }
 
-// Middleware is the turn hook chain (SecurityHooks land in ZCG-25).
+// Middleware is the turn hook chain (default includes SecurityHooks).
 func (a *AgentAPI) Middleware() *application.MiddlewareChain {
 	if a == nil {
 		return nil

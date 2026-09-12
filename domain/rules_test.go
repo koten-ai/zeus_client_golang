@@ -3,6 +3,7 @@
 package domain
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -135,4 +136,39 @@ func TestMergeRulesFrozenBlocksExisting(t *testing.T) {
 	if merged["a"] != "keep" || merged["b"] != "old" || merged["c"] != "new" {
 		t.Fatalf("%v", merged)
 	}
+}
+
+func TestL2RulesMergeFreeze001(t *testing.T) {
+	casePath := findConformance(t, filepath.Join("conformance", "fixtures", "L2_control_plane", "rules_merge_freeze", "case.json"))
+	doc := readJSONFile(t, casePath)
+	if asString(doc["id"]) != "L2.rules.merge_freeze.001" {
+		t.Fatalf("id %v", doc["id"])
+	}
+	fix := readJSONFile(t, filepath.Join(filepath.Dir(casePath), "fixture.json"))
+	base := stringMap(t, fix["base"])
+	overlay := stringMap(t, fix["overlay"])
+	frozen, _ := fix["frozen"].(bool)
+	got := MergeRulesFrozen(base, overlay, frozen)
+	want := stringMap(t, fix["expect_merged"])
+	if len(got) != len(want) {
+		t.Fatalf("len got=%v want=%v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Fatalf("key %s got %q want %q", k, got[k], v)
+		}
+	}
+}
+
+func stringMap(t *testing.T, v any) map[string]string {
+	t.Helper()
+	m, ok := v.(map[string]any)
+	if !ok {
+		t.Fatalf("want object got %T", v)
+	}
+	out := make(map[string]string, len(m))
+	for k, val := range m {
+		out[k] = asString(val)
+	}
+	return out
 }

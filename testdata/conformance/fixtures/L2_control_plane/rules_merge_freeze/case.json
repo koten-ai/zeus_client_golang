@@ -1,0 +1,18 @@
+{
+  "id": "L2.rules.merge_freeze.001",
+  "level": "L2",
+  "family": "rules",
+  "floor": "client-floor-5",
+  "maps_to": ["ZC-WISH-003", "API_RULES", "CHECKLIST-C"],
+  "title": "Named rules{} merge; freeze blocks overlay of existing keys",
+  "pins": {
+    "suite_version": "conformance-0.2-dev",
+    "mock": true
+  },
+  "input": {
+    "fixture": "fixture.json"
+  },
+  "expect": {
+    "result": true
+  }
+}

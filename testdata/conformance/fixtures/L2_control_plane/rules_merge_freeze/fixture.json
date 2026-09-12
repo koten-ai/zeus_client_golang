@@ -1,0 +1,17 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "base": {
+    "no_invent_data": "Never invent rows not returned by Zeus tools.",
+    "scope_only": "Answer only about the active bucket.scope."
+  },
+  "overlay": {
+    "scope_only": "ATTACKER wants to widen scope",
+    "company_tone": "Be brief."
+  },
+  "frozen": true,
+  "expect_merged": {
+    "no_invent_data": "Never invent rows not returned by Zeus tools.",
+    "scope_only": "Answer only about the active bucket.scope.",
+    "company_tone": "Be brief."
+  }
+}

@@ -92,6 +92,38 @@ func TestObjectTriggers(t *testing.T) {
 	}
 }
 
+func TestL2TriggersObjectNormalize001(t *testing.T) {
+	casePath := findConformance(t, filepath.Join("conformance", "fixtures", "L2_control_plane", "triggers_object_normalize", "case.json"))
+	doc := readJSONFile(t, casePath)
+	if asString(doc["id"]) != "L2.triggers.object_normalize.001" {
+		t.Fatalf("id %v", doc["id"])
+	}
+	fix := readJSONFile(t, filepath.Join(filepath.Dir(casePath), "fixture.json"))
+	rows, ok := fix["rows"].([]any)
+	if !ok {
+		t.Fatal("rows")
+	}
+	for _, rowAny := range rows {
+		row, _ := rowAny.(map[string]any)
+		t.Run(asString(row["id"]), func(t *testing.T) {
+			got, errs := NormalizeTriggers(row["raw"], nil)
+			if len(errs) != 0 {
+				t.Fatalf("errs %v", errs)
+			}
+			wantM, _ := row["expect"].(map[string]any)
+			if len(got) != len(wantM) {
+				t.Fatalf("got %v want %v", got, wantM)
+			}
+			for k, wv := range wantM {
+				wantB, _ := wv.(bool)
+				if got[k] != wantB {
+					t.Fatalf("key %s got %v want %v", k, got[k], wantB)
+				}
+			}
+		})
+	}
+}
+
 func TestArrayTriggersRejectedByDefault(t *testing.T) {
 	trig, errs := NormalizeTriggers([]any{true}, []string{"a"})
 	if len(trig) != 0 {
