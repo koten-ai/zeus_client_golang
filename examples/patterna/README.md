@@ -93,9 +93,12 @@ handle, err := c.Jobs().Run(ctx, goal, api.JobsRunParams{Pack: "desk", Budgets: 
 
 `//go:build patterna` — `make ci` adds `-tags patterna` only when `../koten_multi_agent_golang/go.mod` exists. GitHub Actions still skips jobsma until `KOTEN_CI_PAT` is set.
 
+Optional SSE WatchJob for Pattern B UIs (ZCG-37): mount
+`jobshttp.Handler{Jobs: c.Jobs()}` at `/v1/jobs/` or watch a sidecar with
+`config.jobs.host_url`. Resume `from_seq` / `Last-Event-ID`. SSE is not durable SoT.
+
 ## Not this demo
 
-- ZCG-37 SSE WatchJob
 - Reimplementing RunJob / replan / store / chaos
 - `multi_agent=supported` (human MATRIX only)
 - `live_smoke` as the package default

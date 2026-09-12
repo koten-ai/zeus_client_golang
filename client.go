@@ -17,7 +17,8 @@ import (
 // non-nil, is snapshotted and used as-is (Load is skipped).
 //
 // Journal / Secrets / Clock / IDs / Redactor / HTTP default when nil.
-// Zeus, LLM, Catalog, and Jobs stay nil unless injected. ZeusAPI lazy-opens
+// Zeus, LLM, Catalog stay nil unless injected. Jobs stay nil unless injected
+// or config.jobs.host_url is set (jobshttp). ZeusAPI lazy-opens
 // adapters/zeushttp.Port from Config when Services.Zeus is nil.
 type Options struct {
 	Profile    string
@@ -137,9 +138,10 @@ func (c *Client) Units() *api.UnitsAPI {
 }
 
 // Jobs is the Mode 3 jobs facade (ZCG-39). Fail-closed when Options.Jobs is
-// nil (130001). Inject adapters/jobsfake (L4 seed) or adapters/jobsma
-// (Pattern A — koten_multi_agent_golang) via Options.Jobs, or BindJobs after
-// New so Pattern A can do jobsma.New(api.UnitHost{Units: client.Units()}).
+// nil (130001) unless config.jobs.host_url is set (Pattern B jobshttp).
+// Inject adapters/jobsfake (L4 seed), adapters/jobsma (Pattern A), or
+// adapters/jobshttp (SSE WatchJob). BindJobs after New so Pattern A can do
+// jobsma.New(api.UnitHost{Units: client.Units()}).
 // Everyday Q&A stays Mode 1 — jobs are never auto-promoted from chat.
 func (c *Client) Jobs() *api.JobsAPI {
 	if c == nil || c.rt == nil {

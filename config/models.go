@@ -86,7 +86,7 @@ func (r LlmRoleConfig) String() string {
 	)
 }
 
-// JobsConfig is optional Pattern A host pin (unused until later tickets).
+// JobsConfig is optional Mode 3 host pin. HostURL selects Pattern B jobshttp.
 type JobsConfig struct {
 	HostURL        string
 	WatchTransport string

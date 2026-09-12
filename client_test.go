@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/koten-ai/zeus_client_golang/adapters/jobsfake"
+	"github.com/koten-ai/zeus_client_golang/adapters/jobshttp"
 	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
@@ -476,6 +477,42 @@ func TestBindJobsNilSafeAndClosed(t *testing.T) {
 	}
 	if err := c.BindJobs(nil); err == nil {
 		t.Fatal("BindJobs after Close")
+	}
+}
+
+func TestNewWiresJobsHTTPWhenHostURLSet(t *testing.T) {
+	cfg := config.Default()
+	cfg.Jobs.HostURL = "http://jobs.test:7090"
+	c, err := New(Options{Config: &cfg, Env: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	rt, ok := c.Services().Jobs.(*jobshttp.Runtime)
+	if !ok || rt.HostURL() != "http://jobs.test:7090" {
+		t.Fatalf("jobs %T %+v", c.Services().Jobs, rt)
+	}
+	_, err = c.Jobs().Run(context.Background(), "fan-out", api.JobsRunParams{
+		Units: []domain.UnitConfig{clientDirectUnit("u1", "east", "find")},
+	})
+	de, ok := domain.AsError(err)
+	if !ok || de.Code != domain.CodeJobsUnavailable {
+		t.Fatalf("run got %v want 130001", err)
+	}
+}
+
+func TestJobsInjectWinsOverHostURL(t *testing.T) {
+	cfg := config.Default()
+	cfg.Jobs.HostURL = "http://jobs.test:7090"
+	j := journal.NewInMemoryJournal(nil)
+	fake := jobsfake.New(nil)
+	c, err := New(Options{Config: &cfg, Jobs: fake, Journal: j, Env: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if c.Services().Jobs != fake {
+		t.Fatalf("inject should win over host_url: %T", c.Services().Jobs)
 	}
 }
 

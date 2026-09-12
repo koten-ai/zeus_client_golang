@@ -5,10 +5,11 @@ package zeusclient
 import (
 	"context"
 	"io"
+	"strings"
 	"sync"
-
 	"time"
 
+	"github.com/koten-ai/zeus_client_golang/adapters/jobshttp"
 	"github.com/koten-ai/zeus_client_golang/adapters/secretsenv"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
@@ -19,8 +20,9 @@ import (
 )
 
 // Services is the internal dependency bundle (Python runtime.Services).
-// HTTP defaults to a dedicated internal/httpx client. Zeus / LLM / catalog /
-// jobs stay nil unless the caller injects fakes / adapters.
+// HTTP defaults to a dedicated internal/httpx client. Zeus / LLM / catalog
+// stay nil unless injected. Jobs stay nil unless injected, or config.jobs.host_url
+// is set (Pattern B jobshttp WatchJob).
 type Services struct {
 	Journal  journal.ExecutionJournal
 	Secrets  ports.SecretStore
@@ -105,6 +107,10 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 	if metrics == nil {
 		metrics = observability.NewInMemoryMetrics()
 	}
+	jobs := opts.Jobs
+	if jobs == nil && strings.TrimSpace(cfg.Jobs.HostURL) != "" {
+		jobs = jobshttp.New(cfg.Jobs.HostURL, jobshttp.Options{})
+	}
 	return &runtime{
 		cfg:      cfg,
 		journal:  j,
@@ -116,7 +122,7 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 		zeus:     opts.Zeus,
 		llm:      opts.LLM,
 		catalog:  opts.Catalog,
-		jobs:     opts.Jobs,
+		jobs:     jobs,
 		logger:   lg,
 		metrics:  metrics,
 	}

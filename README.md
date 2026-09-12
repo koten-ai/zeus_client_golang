@@ -92,9 +92,13 @@ Auth → catalog (Bag A) → contract + session → injects (Bag B)
 Python Mode 3 is **Pattern B** (HTTP/SSE to a Go sidecar). This module is
 **Pattern A**: same process, link `koten_multi_agent_golang` via
 `adapters/jobsma`. Wire with `jobsma.New(api.UnitHost{Units: c.Units()})`
-then `c.BindJobs` (or inject on `Options.Jobs`). Do not reimplement
-RunJob / replan / store / chaos. Everyday Q&A stays Mode 1. Claim is
-**demo** (`examples/patterna`), not `supported`.
+then `c.BindJobs` (or inject on `Options.Jobs`). Optional SSE WatchJob
+(`adapters/jobshttp`) speaks the same event wire for Pattern B consumers:
+`GET /v1/jobs/{id}/events?from_seq=N` + `Last-Event-ID`. Set
+`config.jobs.host_url` to attach as a sidecar client (`run`/`get`/`cancel`
+stay `130001`). Do not reimplement RunJob / replan / store / chaos.
+Everyday Q&A stays Mode 1. Claim is **demo** (`examples/patterna`), not
+`supported`.
 
 | Python | Go |
 | --- | --- |
