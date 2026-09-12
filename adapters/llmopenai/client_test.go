@@ -186,6 +186,32 @@ func TestCompleteHappyPathAndNoKeyInJournal(t *testing.T) {
 	if !strings.Contains(c.Logs(), "zeus_client.llm.request_finished") {
 		t.Fatalf("logs %s", c.Logs())
 	}
+	if !strings.Contains(c.Logs(), "tokens.input=10") || !strings.Contains(c.Logs(), "tokens.output=2") {
+		t.Fatalf("tokens %s", c.Logs())
+	}
+}
+
+func TestCompleteOmitsTokensWhenUsageMissing(t *testing.T) {
+	body, _ := json.Marshal(map[string]any{
+		"choices": []any{map[string]any{"message": map[string]any{
+			"role": "assistant", "content": "ok",
+		}}},
+	})
+	h := &recHTTP{resps: []ports.HTTPResponse{{Status: 200, Headers: map[string]string{"Content-Type": "application/json"}, Body: body}}}
+	c := testClient(t, h, nil)
+	_, err := c.Complete(context.Background(), ports.LlmRequest{
+		Messages: []map[string]any{{"role": "user", "content": "x"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	logs := c.Logs()
+	if !strings.Contains(logs, "zeus_client.llm.request_finished") {
+		t.Fatalf("logs %s", logs)
+	}
+	if strings.Contains(logs, "tokens.input") || strings.Contains(logs, "tokens.output") {
+		t.Fatalf("must omit missing tokens: %s", logs)
+	}
 }
 
 func TestComplete429RateRetriesThenOK(t *testing.T) {

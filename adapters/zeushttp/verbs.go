@@ -296,14 +296,17 @@ func (p *Port) CallVerb(ctx context.Context, req ports.VerbRequest) (ports.VerbH
 		}
 		errMsg := errTypeName(err)
 		p.journalHop(verb, urlStr, 0, "", false, errMsg, headers, ms, scope, zeusURL)
-		p.emit("error", "zeus_client.zeus.dispatch_failed", map[string]any{
+		failAttrs := map[string]any{
 			"req_id":           "",
 			"verb":             verb,
 			"http.status_code": 0,
 			"duration_ms":      ms,
 			"scope":            scope,
+			"zeus.url":         zeusURL,
 			"result":           "error",
-		})
+			"bytes.out":        len(bodyBytes),
+		}
+		p.emit("error", "zeus_client.zeus.dispatch_failed", failAttrs)
 		return ports.VerbHopResult{}, domain.NewZeusTransport(domain.CodeZeusTransport, verbsComponent,
 			domain.WithMessage("zeus HTTP transport error"),
 			domain.WithCause(err),
@@ -330,6 +333,9 @@ func (p *Port) CallVerb(ctx context.Context, req ports.VerbRequest) (ports.VerbH
 		"http.status_code": status,
 		"duration_ms":      ms,
 		"scope":            scope,
+		"zeus.url":         zeusURL,
+		"bytes.out":        len(bodyBytes),
+		"bytes.in":         len(resp.Body),
 	}
 	if ok {
 		p.emit("info", "zeus_client.zeus.req", hopAttrs)
@@ -344,6 +350,9 @@ func (p *Port) CallVerb(ctx context.Context, req ports.VerbRequest) (ports.VerbH
 		Body:       body,
 		Error:      errStr,
 		URL:        urlStr,
+		BytesIn:    len(resp.Body),
+		BytesOut:   len(bodyBytes),
+		HasBytes:   true,
 	}, nil
 }
 

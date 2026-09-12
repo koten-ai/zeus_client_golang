@@ -10,6 +10,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/application"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
+	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
 )
 
@@ -42,12 +43,14 @@ func TestAgentDefaultMiddlewareIncludesSecurityHooks(t *testing.T) {
 }
 
 func TestAgentRunTurnDirectAnswer(t *testing.T) {
+	metrics := observability.NewInMemoryMetrics()
 	a := NewAgentAPIWith("host", AgentOptions{
 		LLM: stubLLM{resp: ports.LlmResponse{Content: "Hello from Zeus."}},
 		Config: config.RuntimeConfig{
 			Settings: config.ClientSettings{MaxRounds: 4, Mode: "analytics"},
 		},
 		Version: "0.1.0-dev",
+		Metrics: metrics,
 	})
 	got, err := a.RunTurn(context.Background(), "hi", RunTurnParams{
 		EnableSessions: boolPtr(false),
@@ -60,6 +63,11 @@ func TestAgentRunTurnDirectAnswer(t *testing.T) {
 	}
 	if strings.Contains(got.Answer, "wish_i_knew") {
 		t.Fatal("g2")
+	}
+	snap := metrics.Snapshot()
+	counters, _ := snap["counters"].(map[string]any)
+	if _, ok := counters["zeus_client_turns_total"]; !ok {
+		t.Fatalf("metrics %v", snap)
 	}
 }
 

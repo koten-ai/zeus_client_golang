@@ -10,4 +10,5 @@
 // application/projectors (session-trace join + public_trace). ZCG-24 lands
 // RunAgentTurn (sequential bags A–D; G2 never in answer; ctx cancel 000006).
 // ZCG-25 lands SecurityHooks + jailbreak inspect on the default chain.
+// ZCG-26 lands provider token rollup (application/tokens.go).
 package application

@@ -6,6 +6,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
+	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
 	"github.com/koten-ai/zeus_client_golang/security"
 )
@@ -33,6 +34,8 @@ type Options struct {
 	LLM      ports.LlmPort
 	Catalog  ports.CatalogStore
 	Jobs     ports.Jobs
+	Logger   *observability.FamilyLogger
+	Metrics  observability.MetricsPort
 }
 
 // Client is the public handle (Python ZeusRuntime).
@@ -93,6 +96,7 @@ func (c *Client) Zeus() *api.ZeusAPI {
 		Config:   c.Config(),
 		Version:  Version,
 		Redactor: svc.Redactor,
+		Log:      logFunc(svc.Logger),
 	})
 }
 
@@ -125,7 +129,16 @@ func (c *Client) Agent() *api.AgentAPI {
 		Version: Version,
 		Clock:   svc.Clock,
 		Catalog: svc.Catalog,
+		Log:     logFunc(svc.Logger),
+		Metrics: svc.Metrics,
 	})
+}
+
+func logFunc(lg *observability.FamilyLogger) func(level, msg string, attrs map[string]any) {
+	if lg == nil {
+		return nil
+	}
+	return lg.Func()
 }
 
 // Session is the durable-session facade (create / continue / rehydrate / trace).

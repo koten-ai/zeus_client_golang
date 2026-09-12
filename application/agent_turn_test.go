@@ -143,6 +143,67 @@ func TestDirectAnswerNoTools(t *testing.T) {
 	}
 }
 
+func TestTurnFinishedHangsTelemetry(t *testing.T) {
+	var recs []map[string]any
+	logf := func(level, msg string, attrs map[string]any) {
+		cp := map[string]any{}
+		for k, v := range attrs {
+			cp[k] = v
+		}
+		recs = append(recs, map[string]any{"level": level, "msg": msg, "attrs": cp})
+	}
+	llm := &scriptedLLM{script: []any{ports.LlmResponse{
+		Content: "Hello from Zeus.",
+		Usage:   map[string]any{"prompt_tokens": 12, "completion_tokens": 4, "total_tokens": 16},
+	}}}
+	result := RunAgentTurn(context.Background(), TurnRequest{Message: "hi"}, RunAgentTurnOpts{LLM: llm, Log: logf})
+	if result.Status != TurnOK {
+		t.Fatalf("status %s", result.Status)
+	}
+	if result.Debug.Tokens["prompt"] != 12 || result.Debug.Tokens["completion"] != 4 || result.Debug.Tokens["ok"] != true {
+		t.Fatalf("tokens %v", result.Debug.Tokens)
+	}
+	var fin map[string]any
+	for _, r := range recs {
+		if r["msg"] == "zeus_client.turn.finished" {
+			fin, _ = r["attrs"].(map[string]any)
+		}
+		if msg, _ := r["msg"].(string); strings.Contains(msg, "hop.telemetry") {
+			t.Fatalf("invented %v", r["msg"])
+		}
+	}
+	if fin == nil {
+		t.Fatalf("missing turn.finished in %v", recs)
+	}
+	if fin["tokens.input"] != 12 || fin["tokens.output"] != 4 {
+		t.Fatalf("finish tokens %v", fin)
+	}
+	if _, ok := fin["duration_ms"]; !ok {
+		t.Fatal("duration_ms")
+	}
+	if _, ok := fin["bytes.in"]; ok {
+		t.Fatal("bytes on a no-Zeus turn")
+	}
+}
+
+func TestTurnFinishedOmitsTokensWhenLLMNotBilled(t *testing.T) {
+	var recs []map[string]any
+	logf := func(level, msg string, attrs map[string]any) {
+		recs = append(recs, map[string]any{"level": level, "msg": msg, "attrs": cloneAnyMap(attrs)})
+	}
+	llm := &scriptedLLM{script: []any{ports.LlmResponse{Content: "Hello from Zeus."}}}
+	RunAgentTurn(context.Background(), TurnRequest{Message: "hi"}, RunAgentTurnOpts{LLM: llm, Log: logf})
+	for _, r := range recs {
+		if r["msg"] != "zeus_client.turn.finished" {
+			continue
+		}
+		attrs, _ := r["attrs"].(map[string]any)
+		if _, ok := attrs["tokens.input"]; ok {
+			t.Fatalf("must omit missing tokens: %v", attrs)
+		}
+	}
+}
+
 func TestSingleToolThenReturnInsight(t *testing.T) {
 	llm := &scriptedLLM{script: []any{
 		ports.LlmResponse{ToolCalls: []map[string]any{

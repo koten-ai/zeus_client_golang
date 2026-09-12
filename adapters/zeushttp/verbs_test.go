@@ -356,3 +356,40 @@ func TestCallVerbStampsDirectHeadersAndProduct(t *testing.T) {
 		t.Fatal("rewind")
 	}
 }
+
+func TestZeusReqLogsBytesInOutAndReqID(t *testing.T) {
+	body := []byte(`{"ok":true,"n":1}`)
+	h := &recHTTP{resp: ports.HTTPResponse{
+		Status:  200,
+		Headers: map[string]string{domain.ReqIDHeader: "req-bytes-1"},
+		Body:    body,
+	}}
+	p := nonePort(t, h, "http://zeus.test:8080")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{
+		Verb:   "find",
+		Target: yelpTarget(),
+		Body:   map[string]any{"entity_type": "Beer", "limit": 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hop.HasBytes || hop.BytesIn != len(body) || hop.BytesOut <= 0 {
+		t.Fatalf("bytes in=%d out=%d has=%v", hop.BytesIn, hop.BytesOut, hop.HasBytes)
+	}
+	logs := p.Logs()
+	if !strings.Contains(logs, "zeus_client.zeus.req") {
+		t.Fatalf("logs %s", logs)
+	}
+	if !strings.Contains(logs, "req_id=req-bytes-1") || !strings.Contains(logs, "duration_ms=") {
+		t.Fatalf("req/duration %s", logs)
+	}
+	if !strings.Contains(logs, "bytes.in=") || !strings.Contains(logs, "bytes.out=") {
+		t.Fatalf("bytes %s", logs)
+	}
+	if strings.Contains(logs, "zeus_client.hop.telemetry") {
+		t.Fatal("invented hop.telemetry")
+	}
+	if strings.Contains(logs, "tokens.input=0") {
+		t.Fatal("tokens.input=0 on Direct HTTP")
+	}
+}

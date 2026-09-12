@@ -42,6 +42,11 @@ type VerbHopResult struct {
 	Body       map[string]any
 	Error      string
 	URL        string
+	// HTTP body octets when the adapter measured them (REQ-9). HasBytes
+	// false means omit — never treat 0 as "not an HTTP hop".
+	BytesIn  int
+	BytesOut int
+	HasBytes bool
 }
 
 // LlmRequest is one completion call (Python LlmRequest).

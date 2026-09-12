@@ -9,6 +9,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
+	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
 )
 
@@ -25,6 +26,7 @@ type AgentOptions struct {
 	Clock   ports.Clock
 	Catalog ports.CatalogStore
 	Log     func(level, msg string, attrs map[string]any)
+	Metrics observability.MetricsPort
 }
 
 // AgentAPI is the Mode 1 agent-plane facade (Python AgentAPI).
@@ -180,5 +182,22 @@ func (a *AgentAPI) RunTurn(ctx context.Context, message string, params RunTurnPa
 		ContextWindow:    a.opts.Config.LLM.ContextWindowTokens,
 		ContextSoftLimit: a.opts.Config.LLM.ContextSoftLimit,
 	})
+	if m := a.opts.Metrics; m != nil {
+		mode := cs.Mode
+		if mode == "" {
+			mode = "analytics"
+		}
+		m.Incr("zeus_client_turns_total", map[string]string{
+			"status": string(result.Status),
+			"mode":   mode,
+		}, 1)
+		if result.Err != nil {
+			code := string(result.Err.Code)
+			if code == "" {
+				code = "agent_error"
+			}
+			m.Incr("zeus_client_errors_total", map[string]string{"code": code}, 1)
+		}
+	}
 	return result, nil
 }

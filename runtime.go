@@ -13,6 +13,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
 	"github.com/koten-ai/zeus_client_golang/internal/httpx"
+	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
 	"github.com/koten-ai/zeus_client_golang/security"
 )
@@ -31,6 +32,8 @@ type Services struct {
 	LLM      ports.LlmPort
 	Catalog  ports.CatalogStore
 	Jobs     ports.Jobs
+	Logger   *observability.FamilyLogger
+	Metrics  observability.MetricsPort
 }
 
 // runtime is the hexagonal wiring bundle (Python ZeusRuntime.Services).
@@ -50,6 +53,8 @@ type runtime struct {
 	llm      ports.LlmPort
 	catalog  ports.CatalogStore
 	jobs     ports.Jobs
+	logger   *observability.FamilyLogger
+	metrics  observability.MetricsPort
 }
 
 func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
@@ -80,6 +85,26 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 			SkipTLSVerify: !cfg.Zeus.TLSVerify,
 		})
 	}
+	lg := opts.Logger
+	if lg == nil {
+		svcName := cfg.Logging.ServiceName
+		if svcName == "" {
+			svcName = "zeus_client"
+		}
+		lg = observability.NewFamilyLogger(observability.FamilyLoggerOptions{
+			Level:          cfg.Logging.Level,
+			Redact:         cfg.Logging.Redact,
+			ServiceName:    svcName,
+			ServiceVersion: Version,
+			Redactor:       red,
+			PreviewMax:     cfg.Redaction.PreviewMaxChars,
+		})
+		lg.Configure()
+	}
+	metrics := opts.Metrics
+	if metrics == nil {
+		metrics = observability.NewInMemoryMetrics()
+	}
 	return &runtime{
 		cfg:      cfg,
 		journal:  j,
@@ -92,6 +117,8 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 		llm:      opts.LLM,
 		catalog:  opts.Catalog,
 		jobs:     opts.Jobs,
+		logger:   lg,
+		metrics:  metrics,
 	}
 }
 
@@ -116,6 +143,8 @@ func (r *runtime) services() Services {
 		LLM:      r.llm,
 		Catalog:  r.catalog,
 		Jobs:     r.jobs,
+		Logger:   r.logger,
+		Metrics:  r.metrics,
 	}
 }
 

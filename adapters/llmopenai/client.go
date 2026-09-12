@@ -234,12 +234,7 @@ func (c *Client) Complete(ctx context.Context, req ports.LlmRequest) (ports.LlmR
 				"duration_ms":  latencyMS,
 				"result":       "ok",
 			}
-			if n, ok := asInt(parsed.Usage["prompt_tokens"]); ok {
-				finish["tokens.input"] = n
-			}
-			if n, ok := asInt(parsed.Usage["completion_tokens"]); ok {
-				finish["tokens.output"] = n
-			}
+			hangLLMTokenAttrs(finish, parsed.Usage)
 			c.emit("info", "zeus_client.llm.request_finished", finish)
 			return parsed, nil
 		}
@@ -404,6 +399,23 @@ func (c *Client) doSleep(ctx context.Context, d time.Duration) error {
 		return ctx.Err()
 	case <-t.C:
 		return nil
+	}
+}
+
+// hangLLMTokenAttrs copies provider usage onto an existing event.
+// Omit when N/A — never log tokens.input=0 to mean "not an LLM hop".
+func hangLLMTokenAttrs(attrs map[string]any, usage map[string]any) {
+	if attrs == nil || usage == nil {
+		return
+	}
+	if n, ok := asInt(usage["prompt_tokens"]); ok {
+		attrs["tokens.input"] = n
+	}
+	if n, ok := asInt(usage["completion_tokens"]); ok {
+		attrs["tokens.output"] = n
+	}
+	if n, ok := CachedTokensOf(map[string]any{"usage": usage}); ok {
+		attrs["tokens.cached"] = n
 	}
 }
 

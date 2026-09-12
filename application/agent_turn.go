@@ -785,6 +785,7 @@ func finishTurn(in turnFinish) TurnResult {
 		policyName = in.decision.Policy
 		flagsMap = in.decision.Flags
 	}
+	tokens := SumProviderTokens(in.steps, nil)
 	public := projectors.BuildPublicTrace(projectors.PublicTrace{
 		TurnID:              in.turnID,
 		Answer:              answer,
@@ -798,6 +799,7 @@ func finishTurn(in turnFinish) TurnResult {
 		Policy:              policyName,
 		Flags:               flagsMap,
 		Steps:               in.steps,
+		Tokens:              tokens,
 		Session:             sessionBlock,
 		Stamp:               stampMap,
 	})
@@ -857,6 +859,15 @@ func finishTurn(in turnFinish) TurnResult {
 	if in.target.Bucket != "" {
 		finishAttrs["scope"] = in.target.Bucket + "/" + in.target.Scope
 	}
+	if len(reqIDs) > 0 {
+		finishAttrs["req_ids"] = reqIDs
+		rid := pref
+		if rid == "" {
+			rid = reqIDs[len(reqIDs)-1]
+		}
+		finishAttrs["req_id"] = rid
+	}
+	hangTurnTelemetry(finishAttrs, tokens, in.hops)
 	if in.emit != nil {
 		if in.err == nil {
 			tag := "ok"
@@ -900,6 +911,7 @@ func finishTurn(in turnFinish) TurnResult {
 			Target:              targetMap,
 			Catalog:             catalogBlock,
 			ContractStatus:      cst,
+			Tokens:              tokens,
 			Stamp:               stampMap,
 			TraceID:             in.traceID,
 		},
@@ -1071,6 +1083,10 @@ func executeToolCalls(ctx context.Context, o executeToolOpts) (ToolRoundOutcome,
 			"error":   hop.Error,
 			"snippet": clipStr(text, projectors.TraceSnippetMax),
 			"scope":   "",
+		}
+		if hop.HasBytes {
+			hopRec["bytes.in"] = hop.BytesIn
+			hopRec["bytes.out"] = hop.BytesOut
 		}
 		if o.target.Bucket != "" {
 			hopRec["scope"] = o.target.Bucket + "/" + o.target.Scope
@@ -1258,6 +1274,37 @@ func toolsFromRequest(req TurnRequest) []map[string]any {
 		return mapsFromAny(verbs)
 	}
 	return nil
+}
+
+// hangTurnTelemetry adds REQ-9 attrs to zeus_client.turn.finished|failed.
+// Omit tokens when the LLM never billed; omit bytes when no hop measured them.
+// Never log tokens.input=0 to mean "not an LLM hop".
+func hangTurnTelemetry(attrs map[string]any, tokens map[string]any, hops []map[string]any) {
+	if attrs == nil {
+		return
+	}
+	if ok, _ := tokens["ok"].(bool); ok {
+		attrs["tokens.input"] = tokenAsInt(tokens["prompt"])
+		attrs["tokens.output"] = tokenAsInt(tokens["completion"])
+	}
+	inB, outB, haveB := 0, 0, false
+	for _, h := range hops {
+		if h == nil {
+			continue
+		}
+		if v, ok := h["bytes.in"]; ok {
+			haveB = true
+			inB += tokenAsInt(v)
+		}
+		if v, ok := h["bytes.out"]; ok {
+			haveB = true
+			outB += tokenAsInt(v)
+		}
+	}
+	if haveB {
+		attrs["bytes.in"] = inB
+		attrs["bytes.out"] = outB
+	}
 }
 
 func priorUserTexts(msgs []map[string]any) []string {
