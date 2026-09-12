@@ -1,17 +1,25 @@
 # Local quality gates — GO_CLIENT_BOOTSTRAP §4. Race is required.
+# Pattern A (adapters/jobsma) needs sibling ../koten_multi_agent_golang.
+# When the sibling is present, tests run with -tags patterna.
 .PHONY: help test vet race fmt ci conformance
+
+GO_TAGS :=
+ifeq ($(shell test -d ../koten_multi_agent_golang && echo yes),yes)
+GO_TAGS := -tags patterna
+endif
 
 help:
 	@echo "Targets: test vet race fmt ci conformance"
+	@echo "Pattern A tags: $(GO_TAGS)"
 
 test:
-	go test ./...
+	go test $(GO_TAGS) ./...
 
 vet:
-	go vet ./...
+	go vet $(GO_TAGS) ./...
 
 race:
-	go test -race ./...
+	go test -race $(GO_TAGS) ./...
 
 fmt:
 	gofmt -w .

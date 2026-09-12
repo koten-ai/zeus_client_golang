@@ -139,7 +139,8 @@ make conformance   # offline suite (requires sibling zeus_client_design)
 
 Min Go **1.25** (runtime floor of `koten_multi_agent_golang` v0.6.1). Race is
 required (GO_CLIENT_BOOTSTRAP §4). GitHub Actions runs `make ci` on every PR
-and push to `main` (sibling checkout of the private multi-agent module). `go test ./conformance`
+and push to `main`. Pattern A tests (`-tags patterna`) run when the sibling
+`koten_multi_agent_golang` clone is present. `go test ./conformance`
 **skips** the live suite when the private design repo is not cloned; it does
 not fabricate passed cases. `make conformance` hard-fails if the sibling is
 missing. The adapter does **not** award MATRIX `supported`.

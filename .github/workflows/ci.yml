@@ -37,12 +37,13 @@ jobs:
           path: zeus_client_golang
 
       - name: Checkout koten_multi_agent_golang (go.mod replace)
+        continue-on-error: true
         uses: actions/checkout@v7
         with:
           repository: koten-ai/koten_multi_agent_golang
           ref: v0.6.1
           path: koten_multi_agent_golang
-          token: ${{ secrets.KOTEN_CI_PAT }}
+          token: ${{ secrets.KOTEN_CI_PAT || github.token }}
 
       - name: Set up Go
         uses: actions/setup-go@v7

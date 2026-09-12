@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 
+//go:build patterna
+
 // Package jobsma is Pattern A: in-process host that *links*
 // koten_multi_agent_golang (Python has no equivalent — Python is Pattern B).
 //
