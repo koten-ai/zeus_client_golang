@@ -136,7 +136,8 @@ func (c *Client) Units() *api.UnitsAPI {
 }
 
 // Jobs is the Mode 3 jobs facade (ZCG-39). Fail-closed when Options.Jobs is
-// nil (130001). Inject FakeJobRuntime (or a Pattern A host) via Options.Jobs.
+// nil (130001). Inject adapters/jobsfake (L4 seed) or adapters/jobsma
+// (Pattern A — koten_multi_agent_golang) via Options.Jobs.
 // Everyday Q&A stays Mode 1 — jobs are never auto-promoted from chat.
 func (c *Client) Jobs() *api.JobsAPI {
 	if c == nil || c.rt == nil {

@@ -1,5 +1,11 @@
 # Merge gate for zeus_client_golang (ZCG-7 / GO_CLIENT_BOOTSTRAP §4).
 # Race is required — Pattern A goroutines depend on it.
+#
+# go.mod has:
+#   replace github.com/koten-ai/koten_multi_agent_golang => ../koten_multi_agent_golang
+# so this repo and the multi-agent module must be siblings on the runner.
+# The multi-agent repo is private; checkout uses secrets.KOTEN_CI_PAT
+# (same PAT as Zeus CI).
 name: CI
 
 permissions:
@@ -21,14 +27,28 @@ jobs:
     name: make ci (fmt · vet · race · test)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: zeus_client_golang
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          path: zeus_client_golang
+
+      - name: Checkout koten_multi_agent_golang (go.mod replace)
+        uses: actions/checkout@v7
+        with:
+          repository: koten-ai/koten_multi_agent_golang
+          ref: v0.6.1
+          path: koten_multi_agent_golang
+          token: ${{ secrets.KOTEN_CI_PAT }}
 
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version-file: zeus_client_golang/go.mod
+          cache-dependency-path: zeus_client_golang/go.sum
           cache: true
 
       - name: gofmt already clean

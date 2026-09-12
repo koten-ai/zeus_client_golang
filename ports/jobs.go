@@ -35,9 +35,8 @@ type JobSnapshot struct {
 }
 
 // Jobs is the job-runtime port (Python JobRuntimePort).
-// Pattern A (koten_multi_agent_golang) is later — interface only here.
-// Domain types + ValidateUnitMap live in domain (ZCG-28); do not grow this
-// port into an engine.
+// Pattern A host is adapters/jobsma (links koten_multi_agent_golang).
+// Sequential L4 seed is adapters/jobsfake. Do not grow this port into an engine.
 // Watch returns a channel that the adapter closes when the watch ends.
 type Jobs interface {
 	Run(ctx context.Context, request map[string]any) (JobHandle, error)

@@ -41,12 +41,12 @@ func main() {
 | --- | --- |
 | **module** | `github.com/koten-ai/zeus_client_golang` |
 | **version** | `0.1.0` (`zeusclient.Version`) |
-| **min Go** | **1.22** |
+| **min Go** | **1.25** (Pattern A links `koten_multi_agent_golang` v0.6.1) |
 | **license** | **BUSL-1.1** (Additional Use Grant: None; Change License Apache-2.0 on 2030-09-10) |
 | **claim_level** | **candidate** (not `supported`) |
 | **client_floor** | `client-floor-5` |
 | **modes** | `agent`, `direct` |
-| **multi_agent** | **no** (Pattern A later; not this train) |
+| **multi_agent** | **docs** (Pattern A seam linked; demo is ZCG-33 — not `supported`) |
 | **plugins** | no |
 | **suite** | `conformance-0.2-dev` (offline) |
 | **BASE packs tested** | mock path pinned (`base-5-mock`); no production COMPAT triple |
@@ -90,8 +90,10 @@ Auth → catalog (Bag A) → contract + session → injects (Bag B)
 ## Concurrency (Go is Pattern A)
 
 Python Mode 3 is **Pattern B** (HTTP/SSE to a Go sidecar). This module is
-**Pattern A**: same process, link `koten_multi_agent_golang`; do not reimplement
-RunJob / replan / store / chaos. Mode 3 is **out of v0.1**.
+**Pattern A**: same process, link `koten_multi_agent_golang` via
+`adapters/jobsma` (inject on `Options.Jobs`). Do not reimplement
+RunJob / replan / store / chaos. Everyday Q&A stays Mode 1. Claim is
+**docs**, not `demo` / `supported`.
 
 | Python | Go |
 | --- | --- |
@@ -135,8 +137,9 @@ make ci            # fmt vet race test
 make conformance   # offline suite (requires sibling zeus_client_design)
 ```
 
-Min Go **1.22**. Race is required (GO_CLIENT_BOOTSTRAP §4). GitHub Actions
-runs `make ci` on every PR and push to `main`. `go test ./conformance`
+Min Go **1.25** (runtime floor of `koten_multi_agent_golang` v0.6.1). Race is
+required (GO_CLIENT_BOOTSTRAP §4). GitHub Actions runs `make ci` on every PR
+and push to `main` (sibling checkout of the private multi-agent module). `go test ./conformance`
 **skips** the live suite when the private design repo is not cloned; it does
 not fabricate passed cases. `make conformance` hard-fails if the sibling is
 missing. The adapter does **not** award MATRIX `supported`.
@@ -150,7 +153,7 @@ Prefer clones next to this repo so pin paths resolve:
 ../zeus_chat_request/      # BASE packs + COMPAT
 ../Zeus/                   # engine OpenAPI
 ../zeus_client_python/     # behavioral oracle
-../koten_multi_agent_golang/  # Pattern A runtime (later)
+../koten_multi_agent_golang/  # Pattern A runtime (go.mod replace; required for jobsma)
 ```
 
 ## License
