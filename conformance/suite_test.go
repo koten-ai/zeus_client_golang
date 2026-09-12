@@ -55,7 +55,7 @@ func TestConformanceSuiteCandidateOffline(t *testing.T) {
 	if report.Package != "github.com/koten-ai/zeus_client_golang" {
 		t.Fatalf("package %q", report.Package)
 	}
-	if report.PackageVersion != "0.1.0-dev" {
+	if report.PackageVersion != "0.1.0" {
 		t.Fatalf("package_version %q", report.PackageVersion)
 	}
 	raw, err := json.Marshal(report)
@@ -141,7 +141,7 @@ func TestWriteReportRoundTrip(t *testing.T) {
 		SuiteVersion:   "conformance-0.2-dev",
 		Language:       "go",
 		Package:        packageModule,
-		PackageVersion: "0.1.0-dev",
+		PackageVersion: "0.1.0",
 		ClientFloor:    "client-floor-5",
 		ClaimLevel:     "candidate",
 		StartedAt:      "2026-01-01T00:00:00Z",

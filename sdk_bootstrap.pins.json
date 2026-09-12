@@ -2,7 +2,7 @@
   "$schema_comment": "Language-repo bootstrap pins (HOW_TO G0). Never invent production COMPAT triples or Hub stamps. Never put API keys here.",
   "doc": "docs/autonomy/GO_CLIENT_BOOTSTRAP.md",
   "pins_version": "1",
-  "last_reviewed": "2026-09-10",
+  "last_reviewed": "2026-09-12",
 
   "language": {
     "id": "go",
@@ -15,7 +15,7 @@
   "claim": {
     "client_floor": "client-floor-5",
     "claim_level": "candidate",
-    "comment": "candidate|partial|supported — never 'supported' until suite required cases green",
+    "comment": "candidate|partial|supported — never 'supported' until suite required cases green + human MATRIX",
     "modes": ["agent", "direct"],
     "multi_agent": "no",
     "plugins": "no"
@@ -24,7 +24,7 @@
   "suite": {
     "suite_version": "conformance-0.2-dev",
     "design_repo_ref": "local:../zeus_client_design",
-    "design_commit": "88068a8700151c9a66805ba4a3669af95fe1e1cd",
+    "design_commit": "1b805fbc57457e7448ca74bf4ea7ad9664f05762",
     "required_levels": ["L0", "L1", "L2"],
     "detective_tapes_min": ["smooth_short", "fail_zeus"]
   },

@@ -9,12 +9,11 @@ This is **Option A**: a native SDK (no FFI). Same **Client law** as
 the behavioral oracle when implementation details differ; family law still wins
 on stamps, COMPAT, and claim honesty.
 
-> **G0.2 + ZCG-10 … ZCG-26 + ZCG-23** — hexagonal packages through P-Obs
-> (`observability` family slog + token rollup) and P-Suite (offline
-> `conformance/` adapter, same `suite_version` as design). Claim remains
-> **candidate** until a human
+> **0.1.0 candidate** — hexagonal packages through P-Suite (G0–G8 offline).
+> Claim remains **candidate** until a human
 > [MATRIX](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 > row. Everyday Q&A stays Mode 1; jobs are never auto-promoted from chat.
+> See [CHANGELOG.md](CHANGELOG.md).
 
 ```go
 package main
@@ -27,7 +26,7 @@ import (
 )
 
 func main() {
-    fmt.Println(zeusclient.Version) // 0.1.0-dev
+    fmt.Println(zeusclient.Version) // 0.1.0
     c, err := zeusclient.New(zeusclient.Options{})
     if err != nil {
         log.Fatal(err)
@@ -41,7 +40,7 @@ func main() {
 | Field | Value |
 | --- | --- |
 | **module** | `github.com/koten-ai/zeus_client_golang` |
-| **version** | `0.1.0-dev` (`zeusclient.Version`) |
+| **version** | `0.1.0` (`zeusclient.Version`) |
 | **min Go** | **1.22** |
 | **license** | **BUSL-1.1** (Additional Use Grant: None; Change License Apache-2.0 on 2030-09-10) |
 | **claim_level** | **candidate** (not `supported`) |
@@ -51,10 +50,12 @@ func main() {
 | **plugins** | no |
 | **suite** | `conformance-0.2-dev` (offline) |
 | **BASE packs tested** | mock path pinned (`base-5-mock`); no production COMPAT triple |
-| **Zeus versions tested** | `0.6.x` pin; `live_smoke=false` |
+| **Zeus versions tested** | `0.6.x` pin; `live_smoke=false` (Detective tapes sample 0.6.64) |
 
 Pins file: [`sdk_bootstrap.pins.json`](sdk_bootstrap.pins.json) (HOW_TO G0).
+Release notes: [`CHANGELOG.md`](CHANGELOG.md).
 Never invent production `contract_hash` / Hub stamps. Never put API keys in pins.
+Do not claim `supported` or “production ready”.
 
 Family law and ship bar:
 
@@ -117,10 +118,10 @@ github.com/koten-ai/zeus_client_golang
   domain/          # ids + ErrorCode (ZCG-10); Result envelope (ZCG-8); journal (ZCG-9); contract+stamps (ZCG-18); catalog path/lineage/mini_schema/floor (ZCG-15); rules freeze + inject proof + tool trail (ZCG-20); SessionHandle (ZCG-19); LLM classify (ZCG-14)
   ports/           # SecretStore (ZCG-12); Zeus, LLM, catalog, clock, ids, HTTP, jobs (ZCG-11)
   adapters/        # secretsenv (ZCG-12); zeushttp headers+auth+verbs (ZCG-8, ZCG-17, ZCG-13); session HTTP (ZCG-19, ZCG-16); catalogfs (ZCG-15); llmopenai (ZCG-14)
-  application/     # data verbs + typeahead (ZCG-13); Bag B inject (ZCG-20); session lifecycle (ZCG-19); projectors (ZCG-16); agent turn later
+  application/     # data verbs + typeahead (ZCG-13); Bag B inject (ZCG-20); session lifecycle (ZCG-19); projectors (ZCG-16); agent turn (ZCG-24); SecurityHooks (ZCG-25)
   api/             # agent, data, catalog, debug, session
   observability/   # slog family events + REDACT
-  security/        # DefaultRedactor + RedactAttrs (ZCG-5); jailbreak later
+  security/        # DefaultRedactor + RedactAttrs (ZCG-5); jailbreak (ZCG-25)
   internal/httpx/  # dedicated *http.Client, req_id capture, 30s timeout (ZCG-8)
   conformance/     # offline suite adapter (G8 / ZCG-23); same suite_version as pins
 ```

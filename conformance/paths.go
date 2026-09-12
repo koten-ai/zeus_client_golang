@@ -161,22 +161,22 @@ func asString(v any) string {
 func packageVersion(repoRoot string) string {
 	raw, err := os.ReadFile(filepath.Join(repoRoot, "version.go"))
 	if err != nil {
-		return "0.1.0-dev"
+		return "0.1.0"
 	}
 	const needle = `const Version = "`
 	s := string(raw)
 	i := strings.Index(s, needle)
 	if i < 0 {
-		return "0.1.0-dev"
+		return "0.1.0"
 	}
 	s = s[i+len(needle):]
 	j := strings.Index(s, `"`)
 	if j < 0 {
-		return "0.1.0-dev"
+		return "0.1.0"
 	}
 	v := strings.TrimSpace(s[:j])
 	if v == "" {
-		return "0.1.0-dev"
+		return "0.1.0"
 	}
 	return v
 }
