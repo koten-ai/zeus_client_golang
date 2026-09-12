@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/koten-ai/zeus_client_golang/adapters/jobsfake"
 	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
@@ -317,7 +318,8 @@ func TestZeusAgentHandles(t *testing.T) {
 	sess := c.Session()
 	dbg := c.Debug()
 	units := c.Units()
-	if z == nil || a == nil || cat == nil || sess == nil || dbg == nil || units == nil {
+	jobs := c.Jobs()
+	if z == nil || a == nil || cat == nil || sess == nil || dbg == nil || units == nil || jobs == nil {
 		t.Fatal("handles")
 	}
 	if z.Host() != c {
@@ -335,8 +337,11 @@ func TestZeusAgentHandles(t *testing.T) {
 	if units.Host() != c {
 		t.Fatal("Units host")
 	}
+	if jobs.Host() != c {
+		t.Fatal("Jobs host")
+	}
 	var n *Client
-	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil || n.Session() != nil || n.Debug() != nil || n.Units() != nil {
+	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil || n.Session() != nil || n.Debug() != nil || n.Units() != nil || n.Jobs() != nil {
 		t.Fatal("nil Client handles")
 	}
 	if n.Config().Profile != "" {
@@ -401,4 +406,95 @@ func TestNewCloseThirtyTwo(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+type recordingJobsZeus struct {
+	mu    sync.Mutex
+	calls []ports.VerbRequest
+}
+
+func (r *recordingJobsZeus) ResolveAuth(context.Context, config.DataTarget, bool) (ports.AuthContext, error) {
+	return ports.AuthContext{Mode: "none", Headers: map[string]string{}}, nil
+}
+
+func (r *recordingJobsZeus) CallVerb(_ context.Context, req ports.VerbRequest) (ports.VerbHopResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, req)
+	return ports.VerbHopResult{OK: true, StatusCode: 200, ReqID: "req-" + req.Target.Bucket, Body: map[string]any{}}, nil
+}
+
+func clientDirectUnit(id, bucket, verb string) domain.UnitConfig {
+	return domain.UnitConfig{
+		UnitID:     id,
+		Kind:       domain.UnitKindZeusDirect,
+		Goal:       "scan " + bucket,
+		ZeusURL:    "http://127.0.0.1:8080",
+		Bucket:     bucket,
+		Scope:      "sales",
+		Collection: "_default",
+		Call:       map[string]any{"verb": verb, "body": map[string]any{"entity_type": "Beer"}},
+	}
+}
+
+func TestClientJobsUnavailableWithoutHost(t *testing.T) {
+	c, err := New(isolatedOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	_, err = c.Jobs().Run(context.Background(), "fan-out", api.JobsRunParams{
+		Units: []domain.UnitConfig{clientDirectUnit("u1", "east", "find")},
+	})
+	de, ok := domain.AsError(err)
+	if !ok || de.Code != domain.CodeJobsUnavailable {
+		t.Fatalf("got %v want 130001", err)
+	}
+}
+
+func TestClientJobsInjectedFake(t *testing.T) {
+	zeus := &recordingJobsZeus{}
+	cfg := config.RuntimeConfig{
+		Target:   config.DataTarget{Bucket: "west", Scope: "s", Collection: "c"},
+		Zeus:     config.ZeusEndpointConfig{URL: "http://127.0.0.1:8080"},
+		Settings: config.ClientSettings{Mode: "analytics"},
+	}
+	j := journal.NewInMemoryJournal(nil)
+	units := api.NewUnitsAPIWith("host", api.UnitsOptions{
+		Zeus:    zeus,
+		Journal: j,
+		Config:  cfg,
+		Version: Version,
+		Clock:   ports.SystemClock{},
+	})
+	fake := jobsfake.New(api.UnitHost{Units: units})
+	c, err := New(Options{Config: &cfg, Zeus: zeus, Journal: j, Jobs: fake, Env: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if c.Services().Jobs != fake {
+		t.Fatal("injected Jobs is not the one on services")
+	}
+	handle, err := c.Jobs().Run(context.Background(), "two scopes", api.JobsRunParams{
+		Units: []domain.UnitConfig{
+			clientDirectUnit("u1", "east", "find"),
+			clientDirectUnit("u2", "north", "find"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := c.Jobs().Get(context.Background(), handle.JobID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Status != "ok" || snap.Partial {
+		t.Fatalf("snap %+v", snap)
+	}
+	zeus.mu.Lock()
+	defer zeus.mu.Unlock()
+	if len(zeus.calls) != 2 || zeus.calls[0].Target.Bucket != "east" || zeus.calls[1].Target.Bucket != "north" {
+		t.Fatalf("hops %+v", zeus.calls)
+	}
 }

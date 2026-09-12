@@ -135,6 +135,21 @@ func (c *Client) Units() *api.UnitsAPI {
 	})
 }
 
+// Jobs is the Mode 3 jobs facade (ZCG-39). Fail-closed when Options.Jobs is
+// nil (130001). Inject FakeJobRuntime (or a Pattern A host) via Options.Jobs.
+// Everyday Q&A stays Mode 1 — jobs are never auto-promoted from chat.
+func (c *Client) Jobs() *api.JobsAPI {
+	if c == nil || c.rt == nil {
+		return nil
+	}
+	svc := c.Services()
+	return api.NewJobsAPIWith(c, api.JobsOptions{
+		Jobs:    svc.Jobs,
+		Journal: c.Journal(),
+		Clock:   svc.Clock,
+	})
+}
+
 // Agent is the Mode 1 agent-plane facade (ZCG-24 run_turn).
 func (c *Client) Agent() *api.AgentAPI {
 	if c == nil || c.rt == nil {

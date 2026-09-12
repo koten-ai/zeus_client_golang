@@ -9,4 +9,5 @@
 // ZCG-24 fills AgentAPI.RunTurn; ZCG-25 defaults the agent chain to SecurityHooks.
 // ZCG-27 fills DebugAPI (export_journal / spans).
 // ZCG-31 fills UnitsAPI (AgentTurn / ZeusDirect).
+// ZCG-39 fills JobsAPI (Run / Watch / Get / Cancel); missing host → 130001.
 package api

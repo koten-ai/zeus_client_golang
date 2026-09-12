@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- FakeJobRuntime + Jobs API surface (ZCG-39). Sequential L4 seed; missing host → `130001`. Fake is not the engine. `multi_agent` stays **no**. Claim stays **candidate**.
 - Units.AgentTurn + Units.ZeusDirect isolated Client law (ZCG-31). Durable sessions off; `ctx` cancel; Direct skips LLM. `multi_agent` stays **no**. Claim stays **candidate**.
 - Jobs domain types + `ValidateUnitMap` isolation (ZCG-28). Types only; no job engine. `multi_agent` stays **no**. Claim stays **candidate**.
 - Detective projector + nine E2E gather fields on `TurnResult.Debug` (ZCG-27). `Client.Debug().ExportJournal` is the journal handle. Claim stays **candidate**.
