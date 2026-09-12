@@ -4,7 +4,7 @@
 .PHONY: help test vet race fmt ci conformance
 
 GO_TAGS :=
-ifeq ($(shell test -d ../koten_multi_agent_golang && echo yes),yes)
+ifeq ($(shell test -f ../koten_multi_agent_golang/go.mod && echo yes),yes)
 GO_TAGS := -tags patterna
 endif
 
