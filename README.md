@@ -9,18 +9,10 @@ This is **Option A**: a native SDK (no FFI). Same **Client law** as
 the behavioral oracle when implementation details differ; family law still wins
 on stamps, COMPAT, and claim honesty.
 
-> **G0.2 + ZCG-10 + ZCG-5 + ZCG-9 + ZCG-12 + ZCG-11 + ZCG-8 + ZCG-17 + ZCG-18 + ZCG-15 + ZCG-13 + ZCG-20** — hexagonal
-> packages, `New` / `Close` / `Config` / `Zeus`+`Agent` handles, domain
-> IDs, family `ErrorCode` catalogue, result envelope, `security`
-> DefaultRedactor, concurrent-safe `domain/journal`, `config` RuntimeConfig,
-> injected ports, P-HTTP (`internal/httpx` + `X-Zeus-Req-Id` capture),
-> P-Auth (`adapters/zeushttp` none/basic/bearer/session), contract hash
-> oracles (`domain` extract vs compute; invent → `030005`), P-Catalog
-> (`adapters/catalogfs` fail-closed load + public `mini_schema`; extract stamp
-> only), P-Direct (`zeushttp.Port` + `RunDataVerb` / typeahead; no public
-> pipeline), Bag B inject (hash-excluded; rules freeze; tool-path policy),
-> and P-Session (`/v2/session` create / continue / rehydrate; server-minted
-> `session.id`). Claim remains **candidate** until a human
+> **G0.2 + ZCG-10 … ZCG-26 + ZCG-23** — hexagonal packages through P-Obs
+> (`observability` family slog + token rollup) and P-Suite (offline
+> `conformance/` adapter, same `suite_version` as design). Claim remains
+> **candidate** until a human
 > [MATRIX](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 > row. Everyday Q&A stays Mode 1; jobs are never auto-promoted from chat.
 
@@ -130,7 +122,7 @@ github.com/koten-ai/zeus_client_golang
   observability/   # slog family events + REDACT
   security/        # DefaultRedactor + RedactAttrs (ZCG-5); jailbreak later
   internal/httpx/  # dedicated *http.Client, req_id capture, 30s timeout (ZCG-8)
-  conformance/     # offline suite adapter (G8)
+  conformance/     # offline suite adapter (G8 / ZCG-23); same suite_version as pins
 ```
 
 Domain stays free of `net/http` and provider SDKs. CI enforces that.
@@ -138,11 +130,15 @@ Domain stays free of `net/http` and provider SDKs. CI enforces that.
 ## Local gates
 
 ```bash
-make ci    # fmt vet race test
+make ci            # fmt vet race test
+make conformance   # offline suite (requires sibling zeus_client_design)
 ```
 
 Min Go **1.22**. Race is required (GO_CLIENT_BOOTSTRAP §4). GitHub Actions
-runs `make ci` on every PR and push to `main`.
+runs `make ci` on every PR and push to `main`. `go test ./conformance`
+**skips** the live suite when the private design repo is not cloned; it does
+not fabricate passed cases. `make conformance` hard-fails if the sibling is
+missing. The adapter does **not** award MATRIX `supported`.
 
 ## Sibling layout
 

@@ -42,6 +42,9 @@ secrets.yaml
 secrets.yml
 config.json
 
+# Conformance adapter local report
+conformance/last_report.json
+
 # --- Local scratch ---
 /tmp/
 *.log
