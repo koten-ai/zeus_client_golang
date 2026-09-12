@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- Do less on the Mode 1 product path (no version bump, claim stays **candidate**):
+  - Detective is off in `Default()` / product profiles. Hub profile, `StampUser=admin`, or `debug.detective_briefing=true` still gather (nine E2E fields + briefing). `ZEUS_CLIENT_DETECTIVE=0` remains the kill-switch. Python still defaults briefing on — Hub insight is a profile here, not the SDK default.
+  - `settings.durable_sessions` package default is **false** (sessions when enabled). Hub Debug Chat already passes false; rehydrate tests still set true.
+  - Catalog inject clones at most once and skips when headings are already present. LLM `Complete` gets a slice copy, not a JSON deep-copy per round.
+  - `Client.Zeus()` / `Agent()` / `Catalog()` / `Session()` cache facades; `Config()` still snapshots. Semantic-cache slices are not cloned when cache is off.
+  - Journal event ids are monotonic per turn; `Len()` replaces `Events()` for the finish count. Duplicate jailbreak inspect of the same tool-args / answer payload is dropped (SecurityHooks + dual scores stay).
+
+### Fixed
+
+- Family-law / Python-oracle gaps on the 0.1.0 candidate (no version bump, claim stays **candidate**, `multi_agent` stays **demo**):
+  - `mergeTurnSettings` no longer ORs true-default bools. `ignore_user_tool_path_hints=false` injects the honor TOOL PATH POLICY (ZCF-WISH-054). Same for `tool_trail_*` and `soft_require_policy_action`. Agent API overlays caller settings onto config (`config.OverlaySettings`).
+  - `Agent.RunTurn` loads catalog like Python `load_for_turn`: bind pack `response_output_schema` → `PackSchema`, `EnsureScopeBrief` (live fetch skipped this train). Lazy FS from `chat_requests_dir` when no injected store.
+  - Typeahead `SearchSuggest` enforces `config.rate_limit` (token bucket, `000009`) and records `zeus_client_typeahead_total` / `zeus_client_rate_limited_total`. Direct verbs record `zeus_client_zeus_hops_total`.
+  - Honesty: add [`BLOCKED.md`](BLOCKED.md); stop calling Zeus/Agent stubs in package docs; `0.1.0` changelog “Not claimed” is the **tag-time** snapshot — current `multi_agent` is **demo** (Unreleased + pins).
+
 ### Added
 
 - Options stamp switch (ZCG-36). Product default stays `user=zeus_client`. Hub Debug Chat sets `Options.StampUser=admin` on the **same** agent path — no second loop. Session / trace / `X-Zeus-Client` follow the resolved user. Unknown values fail-closed to `zeus_client`. Helios-style `AssertProductStamp` still sees product purity on the default path. Claim stays **candidate**. `multi_agent` stays **demo**. Not `supported`. Version stays `0.1.0`.
@@ -26,6 +43,11 @@ First **candidate** tag of `github.com/koten-ai/zeus_client_golang`. Drop `-dev`
 Stop at **candidate** (CANDIDATE_CHARTER STOP A). No `supported` claim. No
 “production ready”. No chat_request COMPAT triple.
 
+Later Unreleased commits stay **0.1.0** (no bump). Current pins/README:
+`multi_agent=demo`. Residuals: [BLOCKED.md](BLOCKED.md). The pin block below
+is the **original tag** snapshot (`multi_agent: no` at tag; Pattern A landed
+after under Unreleased).
+
 ### Pins (ZCF-WISH-030)
 
 ```text
@@ -41,7 +63,8 @@ modes: agent, direct
 ```
 
 CHECKLIST A–E: implemented on this candidate train (G0–G8 offline). E2
-`semantic_cache=no`. F `multi_agent=no`. Honesty lives in this file + the
+`semantic_cache=no`. F at tag was `multi_agent=no`; current Unreleased is
+`demo`. Honesty lives in this file + [BLOCKED.md](BLOCKED.md) + the
 design-repo MATRIX row — do not treat Python CHECKLIST ticks as Go.
 
 ### Added
@@ -70,16 +93,14 @@ Product stamp `user=zeus_client`. `ai_process_result` package default **false**.
 `VerbRequest.AllowPipeline` defaults false. Everyday Q&A stays Mode 1; jobs are
 never auto-promoted from chat.
 
-### Not claimed
+### Not claimed (at tag; see Unreleased + BLOCKED.md for current)
 
 - MATRIX **`supported`** / “production ready”
 - chat_request **COMPAT triple** / production `contract_hash` / Hub stamps
-- Pattern A / Units (`koten_multi_agent_golang` link) — `multi_agent` stays **no**
 - Detective Hub UI
 - live Zeus / live LLM as the happy path (`live_smoke=false`)
-- `multi_agent=docs|demo|supported`
+- `multi_agent=supported` (Unreleased / pins: **demo**)
 - `semantic_cache` (not this train)
 - plugins
 - floor-6.1 as the **package floor** (settings case ran in the suite; claimed floor stays `client-floor-5`)
 - OTLP Logs exporter (family slog + REDACT only; config keys exist)
-- Hub Debug Chat import PR

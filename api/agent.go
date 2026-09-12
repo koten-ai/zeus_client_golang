@@ -35,6 +35,7 @@ type AgentAPI struct {
 	host       any
 	opts       AgentOptions
 	middleware *application.MiddlewareChain
+	cat        *CatalogAPI
 }
 
 // NewAgentAPI binds a Client (or test fake) as the facade host.
@@ -64,6 +65,16 @@ func (a *AgentAPI) Middleware() *application.MiddlewareChain {
 		return nil
 	}
 	return a.middleware
+}
+
+func (a *AgentAPI) catalogHandle() *CatalogAPI {
+	if a == nil {
+		return NewCatalogAPI(CatalogOptions{})
+	}
+	if a.cat == nil {
+		a.cat = NewCatalogAPI(CatalogOptions{Store: a.opts.Catalog, Config: a.opts.Config})
+	}
+	return a.cat
 }
 
 // RunTurnParams is AgentAPI.RunTurn kwargs (Python AgentAPI.run_turn).
@@ -113,7 +124,7 @@ func (a *AgentAPI) RunTurn(ctx context.Context, message string, params RunTurnPa
 	}
 	cs := a.opts.Config.Settings
 	if params.Settings != nil {
-		cs = *params.Settings
+		cs = config.OverlaySettings(cs, *params.Settings)
 	}
 	tgt := a.opts.Config.Target
 	if params.Target != nil {
@@ -122,16 +133,25 @@ func (a *AgentAPI) RunTurn(ctx context.Context, message string, params RunTurnPa
 	cr := params.ChatRequest
 	var extra []string
 	var pack map[string]any
-	if cr == nil && a.opts.Catalog != nil {
-		loaded, err := a.opts.Catalog.Load(ctx, ports.CatalogKey{
-			Mode:   cs.Mode,
-			Bucket: tgt.Bucket,
-			Scope:  tgt.Scope,
-			BaseID: params.BaseID,
-		})
+	if cr == nil {
+		loaded, err := a.catalogHandle().LoadForTurn(ctx, LoadParams{Mode: cs.Mode, Target: &tgt, BaseID: params.BaseID})
 		if err == nil {
 			cr = loaded.Body
-			extra = append(extra, "chat_request: catalog")
+			pack = loaded.ResponseOutputSchema
+			src := loaded.Source
+			if src == "" {
+				src = "catalog"
+			}
+			extra = append(extra, "chat_request: "+src)
+		}
+	} else if domain.ExtractScopeBrief(cr) == "" {
+		merged := a.catalogHandle().EnsureScopeBrief(ctx, cr, cs.Mode, tgt)
+		cr = merged.Body
+		if merged.Note != "" {
+			extra = append(extra, merged.Note)
+		}
+		if merged.ReqID != "" {
+			extra = append(extra, "scope_brief.req_id="+merged.ReqID)
 		}
 	}
 	sessionsOn := cs.DurableSessions

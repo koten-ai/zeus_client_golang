@@ -4,6 +4,8 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/koten-ai/zeus_client_golang/adapters/zeushttp"
@@ -11,6 +13,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
+	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
 	"github.com/koten-ai/zeus_client_golang/security"
 )
@@ -32,14 +35,16 @@ type ZeusAPI struct {
 // ZeusOptions constructs ZeusAPI. Zeus nil → lazy zeushttp.Port from Config + HTTP.
 // Runtime services.Zeus stays nil unless injected.
 type ZeusOptions struct {
-	Zeus     ports.ZeusPort
-	HTTP     ports.HttpPort
-	Secrets  ports.SecretStore
-	Journal  journal.ExecutionJournal
-	Config   config.RuntimeConfig
-	Version  string
-	Redactor security.Redactor
-	Log      func(level, msg string, attrs map[string]any)
+	Zeus        ports.ZeusPort
+	HTTP        ports.HttpPort
+	Secrets     ports.SecretStore
+	Journal     journal.ExecutionJournal
+	Config      config.RuntimeConfig
+	Version     string
+	Redactor    security.Redactor
+	Log         func(level, msg string, attrs map[string]any)
+	Metrics     observability.MetricsPort
+	RateLimiter *observability.TokenBucketLimiter
 }
 
 // CallOptions is per-call Direct kwargs (Python DataAPI.verb).
@@ -124,10 +129,6 @@ func (z *ZeusAPI) SearchSuggest(ctx context.Context, query string, opts SuggestC
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	port, err := z.port()
-	if err != nil {
-		return application.SuggestResult{}, err
-	}
 	target := z.opts.Config.Target
 	if opts.Target != nil {
 		target = *opts.Target
@@ -140,7 +141,43 @@ func (z *ZeusAPI) SearchSuggest(ctx context.Context, query string, opts SuggestC
 	if opts.Rewind != nil {
 		rewind = *opts.Rewind
 	}
-	return application.RunTypeaheadSearch(ctx, port, query, target, so, rewind)
+	minLen := application.MinQueryLen
+	if so.MinQueryLen > 0 {
+		minLen = so.MinQueryLen
+	}
+	if len(strings.TrimSpace(query)) < minLen {
+		return application.RunTypeaheadSearch(ctx, nil, query, target, so, rewind)
+	}
+	port, err := z.port()
+	if err != nil {
+		return application.SuggestResult{}, err
+	}
+	rl := z.opts.Config.RateLimit
+	if rl.TypeaheadEnabled && z.opts.RateLimiter != nil && !z.opts.RateLimiter.Allow("typeahead", 1) {
+		if z.opts.Metrics != nil {
+			z.opts.Metrics.Incr("zeus_client_rate_limited_total", map[string]string{"surface": "typeahead"}, 1)
+		}
+		return application.SuggestResult{}, domain.New(domain.CodeClientRateLimited, "api.zeus.search",
+			domain.WithMessage("rate limited (client)"),
+			domain.WithDetails(map[string]any{
+				"surface": "typeahead",
+				"rps":     rl.TypeaheadRPS,
+				"burst":   rl.TypeaheadBurst,
+			}),
+		)
+	}
+	result, err := application.RunTypeaheadSearch(ctx, port, query, target, so, rewind)
+	if err != nil {
+		return result, err
+	}
+	if z.opts.Metrics != nil {
+		src := result.Source
+		if src == "" {
+			src = "unknown"
+		}
+		z.opts.Metrics.Incr("zeus_client_typeahead_total", map[string]string{"source": src}, 1)
+	}
+	return result, nil
 }
 
 func (z *ZeusAPI) run(ctx context.Context, verb string, body map[string]any, opts CallOptions) (application.VerbResult, error) {
@@ -191,10 +228,28 @@ func (z *ZeusAPI) run(ctx context.Context, verb string, body map[string]any, opt
 	if err != nil {
 		return result, err
 	}
+	z.recordHop(verb, result)
 	if result.OK {
 		return result, nil
 	}
 	return result, hopError(result)
+}
+
+func (z *ZeusAPI) recordHop(verb string, result application.VerbResult) {
+	if z == nil || z.opts.Metrics == nil {
+		return
+	}
+	statusClass := "err"
+	if result.StatusCode > 0 {
+		statusClass = fmt.Sprintf("%dxx", result.StatusCode/100)
+	}
+	z.opts.Metrics.Incr("zeus_client_zeus_hops_total", map[string]string{
+		"verb":         verb,
+		"status_class": statusClass,
+	}, 1)
+	if !result.OK {
+		z.opts.Metrics.Incr("zeus_client_errors_total", map[string]string{"code": "zeus_verb_failed"}, 1)
+	}
 }
 
 func (z *ZeusAPI) port() (ports.ZeusPort, error) {

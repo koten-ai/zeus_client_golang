@@ -370,25 +370,63 @@ func BuildInjectBlock(s InjectSettings) (string, []string) {
 	return strings.Join(parts, "\n\n"), warnings
 }
 
-func spliceChatReq(chatReq map[string]any, block, headingLine string) map[string]any {
-	if strings.TrimSpace(block) == "" {
+func chatReqSystemTexts(chatReq map[string]any) (msg0, instr string) {
+	if chatReq == nil {
+		return "", ""
+	}
+	if messages, ok := chatReq["messages"].([]any); ok && len(messages) > 0 {
+		if msg, ok := messages[0].(map[string]any); ok {
+			msg0 = asStr(msg["content"])
+		}
+	}
+	if m, ok := chatReq["instructions"].(map[string]any); ok && m != nil {
+		instr = asStr(m["system_prompt"])
+	}
+	return msg0, instr
+}
+
+func chatReqHasHeading(chatReq map[string]any, heading string) bool {
+	if heading == "" {
+		return false
+	}
+	a, b := chatReqSystemTexts(chatReq)
+	return strings.Contains(a, heading) || strings.Contains(b, heading)
+}
+
+func chatReqHasBriefMarker(chatReq map[string]any) bool {
+	a, b := chatReqSystemTexts(chatReq)
+	return hasBriefMarker(a) || hasBriefMarker(b)
+}
+
+// spliceChatReqInPlace writes inject text into an already-cloned chat_req.
+func spliceChatReqInPlace(chatReq map[string]any, block, headingLine string) map[string]any {
+	if strings.TrimSpace(block) == "" || chatReq == nil {
 		return chatReq
 	}
-	out := cloneDoc(chatReq)
 	splice := func(text string) string {
 		return spliceAfterBrief(text, block, headingLine)
 	}
-	if messages, ok := out["messages"].([]any); ok && len(messages) > 0 {
+	if messages, ok := chatReq["messages"].([]any); ok && len(messages) > 0 {
 		if msg, ok := messages[0].(map[string]any); ok {
 			msg["content"] = splice(asStr(msg["content"]))
 		}
 	}
-	if instr, ok := out["instructions"].(map[string]any); ok && instr != nil {
+	if instr, ok := chatReq["instructions"].(map[string]any); ok && instr != nil {
 		if sp := asStr(instr["system_prompt"]); sp != "" {
 			instr["system_prompt"] = splice(sp)
 		}
 	}
-	return out
+	return chatReq
+}
+
+func spliceChatReq(chatReq map[string]any, block, headingLine string) map[string]any {
+	if strings.TrimSpace(block) == "" {
+		return chatReq
+	}
+	if !chatReqHasBriefMarker(chatReq) || chatReqHasHeading(chatReq, headingLine) {
+		return chatReq
+	}
+	return spliceChatReqInPlace(cloneDoc(chatReq), block, headingLine)
 }
 
 // ApplyControlPlaneInject deep-copies chat_req and splices the inject block
@@ -406,23 +444,41 @@ func ApplyControlPlaneInject(chatReq map[string]any, settings InjectSettings) ma
 // ApplyToolPathInject splices TOOL PATH POLICY into Bag B. Does not rewrite
 // the user message.
 func ApplyToolPathInject(chatReq map[string]any, ignore bool) map[string]any {
-	block := RenderToolPathPolicy(ignore)
-	sys0 := ""
-	if messages, ok := chatReq["messages"].([]any); ok && len(messages) > 0 {
-		if msg, ok := messages[0].(map[string]any); ok {
-			sys0 = asStr(msg["content"])
-		}
-	}
-	if strings.Contains(sys0, ToolPathHeading) {
+	if chatReqHasHeading(chatReq, ToolPathHeading) {
 		return chatReq
 	}
-	return spliceChatReq(chatReq, block, ToolPathHeading)
+	return spliceChatReq(chatReq, RenderToolPathPolicy(ignore), ToolPathHeading)
+}
+
+func injectBagB(chatReq map[string]any, settings InjectSettings) map[string]any {
+	if len(chatReq) == 0 {
+		return chatReq
+	}
+	block, _ := BuildInjectBlock(settings)
+	heading := ""
+	if strings.TrimSpace(block) != "" {
+		heading = strings.Split(block, "\n")[0]
+	}
+	hasBrief := chatReqHasBriefMarker(chatReq)
+	needCP := strings.TrimSpace(block) != "" && hasBrief && !chatReqHasHeading(chatReq, heading)
+	needTP := hasBrief && !chatReqHasHeading(chatReq, ToolPathHeading)
+	if !needCP && !needTP {
+		return chatReq
+	}
+	out := cloneDoc(chatReq)
+	if needCP {
+		out = spliceChatReqInPlace(out, block, heading)
+	}
+	if needTP {
+		out = spliceChatReqInPlace(out, RenderToolPathPolicy(settings.IgnoreUserToolPathHints), ToolPathHeading)
+	}
+	return out
 }
 
 // ApplyBagBInject is control-plane + tool-path. User messages stay unchanged.
+// Clones the catalog at most once.
 func ApplyBagBInject(chatReq map[string]any, settings InjectSettings) map[string]any {
-	out := ApplyControlPlaneInject(chatReq, settings)
-	return ApplyToolPathInject(out, settings.IgnoreUserToolPathHints)
+	return injectBagB(chatReq, settings)
 }
 
 func cloneDoc(m map[string]any) map[string]any {

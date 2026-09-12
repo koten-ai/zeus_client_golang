@@ -20,13 +20,25 @@ func (c RuntimeConfig) clone() RuntimeConfig {
 	out.Settings.OutputRequest = copyAnyMap(c.Settings.OutputRequest)
 	out.Settings.Rules = copyStringMap(c.Settings.Rules)
 	out.Settings.TenantRules = copyStringMap(c.Settings.TenantRules)
-	out.Jobs.Models = copyAnyMap(c.Jobs.Models)
+	if len(c.Jobs.Models) == 0 {
+		out.Jobs.Models = nil
+	} else {
+		out.Jobs.Models = copyAnyMap(c.Jobs.Models)
+	}
 	out.ScopeContracts = copyAnyMap(c.ScopeContracts)
-	out.SemanticCache.ApplyToModes = copyStrings(c.SemanticCache.ApplyToModes)
-	out.SemanticCache.Recall.Types = copyStrings(c.SemanticCache.Recall.Types)
-	out.SemanticCache.Inject.IncludeFields = copyStrings(c.SemanticCache.Inject.IncludeFields)
-	out.SemanticCache.Write.TypesAllowed = copyStrings(c.SemanticCache.Write.TypesAllowed)
-	out.SemanticCache.Privacy.DenyRegex = copyStrings(c.SemanticCache.Privacy.DenyRegex)
+	if !c.SemanticCache.Enabled {
+		out.SemanticCache.ApplyToModes = nil
+		out.SemanticCache.Recall.Types = nil
+		out.SemanticCache.Inject.IncludeFields = nil
+		out.SemanticCache.Write.TypesAllowed = nil
+		out.SemanticCache.Privacy.DenyRegex = nil
+	} else {
+		out.SemanticCache.ApplyToModes = copyStrings(c.SemanticCache.ApplyToModes)
+		out.SemanticCache.Recall.Types = copyStrings(c.SemanticCache.Recall.Types)
+		out.SemanticCache.Inject.IncludeFields = copyStrings(c.SemanticCache.Inject.IncludeFields)
+		out.SemanticCache.Write.TypesAllowed = copyStrings(c.SemanticCache.Write.TypesAllowed)
+		out.SemanticCache.Privacy.DenyRegex = copyStrings(c.SemanticCache.Privacy.DenyRegex)
+	}
 	return out
 }
 

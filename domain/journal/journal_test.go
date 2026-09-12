@@ -27,6 +27,21 @@ func evt(eventID string, ts int64, typ string, extra map[string]any) JournalEven
 	}
 }
 
+func TestJournalLenDoesNotCopyEvents(t *testing.T) {
+	j := NewInMemoryJournal(nil)
+	if j.Len() != 0 {
+		t.Fatal("empty")
+	}
+	j.Append(evt("e1", 10, EventTurnStarted, nil))
+	j.Append(evt("e2", 20, EventNote, nil))
+	if j.Len() != 2 {
+		t.Fatalf("len %d", j.Len())
+	}
+	if len(j.Events()) != j.Len() {
+		t.Fatal("Events/Len mismatch")
+	}
+}
+
 func TestJournalAppendOrder(t *testing.T) {
 	j := NewInMemoryJournal(nil)
 	j.Append(evt("e1", 10, EventTurnStarted, nil))

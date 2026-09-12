@@ -170,6 +170,29 @@ func TestProductStampVersionTracksPackage(t *testing.T) {
 	}
 }
 
+func TestFacadesCachedAndConfigCloneIsolated(t *testing.T) {
+	cfg := config.Default()
+	c, err := New(Options{Config: &cfg, Env: map[string]string{}, LLM: stampLLM{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if c.Zeus() != c.Zeus() {
+		t.Fatal("Zeus facade must be cached")
+	}
+	if c.Agent() != c.Agent() {
+		t.Fatal("Agent facade must be cached")
+	}
+	if c.Catalog() != c.Catalog() {
+		t.Fatal("Catalog facade must be cached")
+	}
+	snap := c.Config()
+	snap.Settings.StickyFlags["injected"] = true
+	if _, ok := c.Config().Settings.StickyFlags["injected"]; ok {
+		t.Fatal("Config() snapshot aliased runtime")
+	}
+}
+
 func TestRuntimeFromConfigDevelopment(t *testing.T) {
 	c, err := New(Options{Profile: "development", Env: map[string]string{}})
 	if err != nil {

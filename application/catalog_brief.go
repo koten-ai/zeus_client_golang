@@ -86,13 +86,13 @@ func lineageModeFromCatalog(chatReq map[string]any) string {
 // EnsureScopeBrief merges a live ## SCOPE BRIEF when the catalog has none.
 // Never raises — fetch errors leave the disk catalog unchanged.
 func EnsureScopeBrief(ctx context.Context, chatReq map[string]any, fetch ChatRequestFetch, bucket, scope, mode string) ScopeBriefResult {
-	body := cloneAnyMap(chatReq)
-	if domain.ExtractScopeBrief(body) != "" {
-		return ScopeBriefResult{Body: body, Note: "scope_brief: already present"}
+	if domain.ExtractScopeBrief(chatReq) != "" {
+		return ScopeBriefResult{Body: chatReq, Note: "scope_brief: already present"}
 	}
 	if fetch == nil {
-		return ScopeBriefResult{Body: body, Note: "scope_brief: live fetch skipped (no catalog_remote)"}
+		return ScopeBriefResult{Body: chatReq, Note: "scope_brief: live fetch skipped (no catalog_remote)"}
 	}
+	body := cloneAnyMap(chatReq)
 	if ctx == nil {
 		ctx = context.Background()
 	}

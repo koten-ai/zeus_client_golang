@@ -131,7 +131,7 @@ func fromRuntimeMapping(data map[string]any, profile string) (RuntimeConfig, err
 		PreviewMaxChars: asInt(redaction["preview_max_chars"], 2048),
 	}
 	cfg.Debug = DebugPolicy{
-		DetectiveBriefing: asBool(debug["detective_briefing"], true),
+		DetectiveBriefing: asBool(debug["detective_briefing"], base.Debug.DetectiveBriefing),
 		CaptureBodies:     asBool(debug["capture_bodies"], false),
 		TransportReplay:   asBool(debug["transport_replay"], true),
 		HubBaseURL:        asString(debug["hub_base_url"], ""),
@@ -194,7 +194,7 @@ func parseClientSettings(settings map[string]any, def ClientSettings) ClientSett
 	out.MaxRounds = asInt(settings["max_rounds"], 8)
 	out.ForceTrace = asBool(settings["force_trace"], false)
 	out.Mode = asString(settings["mode"], "analytics")
-	out.DurableSessions = asBool(settings["durable_sessions"], true)
+	out.DurableSessions = asBool(settings["durable_sessions"], def.DurableSessions)
 	out.StickyFlags = asBoolMap(settings["sticky_flags"])
 	out.Messages = asStringMap(settings["messages"])
 	out.SoftRequirePolicyAction = asBool(settings["soft_require_policy_action"], true)

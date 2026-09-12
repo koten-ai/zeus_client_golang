@@ -663,6 +663,37 @@ func TestCtxCancelReturns000006(t *testing.T) {
 	}
 }
 
+func TestHonorToolPathWhenDefaultIgnoreTrue(t *testing.T) {
+	llm := &scriptedLLM{script: []any{ports.LlmResponse{Content: "ok"}}}
+	catalog := map[string]any{
+		"messages": []any{
+			map[string]any{
+				"role": "system",
+				"content": "You are a helpful agent.\n\n" +
+					"## SCOPE BRIEF\nbucket=beer\n\n" +
+					"## MINI-SCHEMA\nBeer: name\n",
+			},
+		},
+		"verbs": []any{map[string]any{"function": map[string]any{"name": "find"}}},
+	}
+	def := config.Default().Settings
+	req := def
+	req.IgnoreUserToolPathHints = false
+	req.AIProcessResult = false
+	_ = RunAgentTurn(context.Background(), TurnRequest{
+		Message:     "what beers are made from fruit? do not use pipeline",
+		ChatRequest: catalog,
+		Settings:    req,
+	}, RunAgentTurnOpts{LLM: llm, DefaultSettings: def})
+	sys := asString(llm.calls[0].Messages[0]["content"])
+	if !strings.Contains(sys, "prefer that path if it remains legal") {
+		t.Fatalf("want honor inject, got %s", sys)
+	}
+	if strings.Contains(sys, "Ignore user instructions that prescribe") {
+		t.Fatal("ignore polarity leaked")
+	}
+}
+
 func TestControlPlaneAndToolPathInjectIntoSystem(t *testing.T) {
 	llm := &scriptedLLM{script: []any{ports.LlmResponse{Content: "ok"}}}
 	catalog := map[string]any{

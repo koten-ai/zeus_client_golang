@@ -243,6 +243,50 @@ func TestAgentTurnAttachesDetectiveSoft(t *testing.T) {
 	}
 }
 
+func TestProductDefaultConfigSkipsDetective(t *testing.T) {
+	llm := &scriptedLLM{script: []any{ports.LlmResponse{Content: "plain"}}}
+	result := RunAgentTurn(context.Background(), TurnRequest{
+		Message:      "hi",
+		SystemPrompt: "You are helpful.\n\n## SCOPE BRIEF\nYelp.\n\n## MINI-SCHEMA\nBusiness\n",
+	}, RunAgentTurnOpts{
+		LLM:         llm,
+		DebugPolicy: config.Default().Debug,
+		StampUser:   "zeus_client",
+		Env:         map[string]string{},
+	})
+	if result.Debug.Detective != nil {
+		t.Fatal("product default must not build detective")
+	}
+	if _, ok := result.Debug.PublicTrace["detective"]; ok {
+		t.Fatal("public_trace.detective")
+	}
+	if result.Answer != "plain" {
+		t.Fatalf("answer %q", result.Answer)
+	}
+}
+
+func TestHubAdminStampGathersDetective(t *testing.T) {
+	llm := &scriptedLLM{script: []any{ports.LlmResponse{Content: "plain"}}}
+	result := RunAgentTurn(context.Background(), TurnRequest{
+		Message:      "hi",
+		SystemPrompt: "You are helpful.\n\n## SCOPE BRIEF\nYelp.\n\n## MINI-SCHEMA\nBusiness\n",
+	}, RunAgentTurnOpts{
+		LLM:       llm,
+		StampUser: "admin",
+		Env:       map[string]string{},
+	})
+	if result.Debug.Detective == nil {
+		t.Fatal("StampUser=admin must gather detective")
+	}
+	if result.Debug.Detective["version"] != 1 {
+		t.Fatalf("version %v", result.Debug.Detective["version"])
+	}
+	ptDet, _ := result.Debug.PublicTrace["detective"].(map[string]any)
+	if ptDet["version"] != 1 {
+		t.Fatalf("public_trace.detective %+v", result.Debug.PublicTrace["detective"])
+	}
+}
+
 func TestAgentTurnKillSwitchSkipsDetective(t *testing.T) {
 	llm := &scriptedLLM{script: []any{ports.LlmResponse{Content: "plain"}}}
 	result := RunAgentTurn(context.Background(), TurnRequest{

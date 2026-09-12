@@ -11,6 +11,7 @@ import (
 
 	"github.com/koten-ai/zeus_client_golang/adapters/jobshttp"
 	"github.com/koten-ai/zeus_client_golang/adapters/secretsenv"
+	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
 	"github.com/koten-ai/zeus_client_golang/internal/httpx"
@@ -24,18 +25,19 @@ import (
 // stay nil unless injected. Jobs stay nil unless injected, or config.jobs.host_url
 // is set (Pattern B jobshttp WatchJob).
 type Services struct {
-	Journal  journal.ExecutionJournal
-	Secrets  ports.SecretStore
-	Clock    ports.Clock
-	IDs      ports.IDFactory
-	Redactor security.Redactor
-	HTTP     ports.HttpPort
-	Zeus     ports.ZeusPort
-	LLM      ports.LlmPort
-	Catalog  ports.CatalogStore
-	Jobs     ports.Jobs
-	Logger   *observability.FamilyLogger
-	Metrics  observability.MetricsPort
+	Journal     journal.ExecutionJournal
+	Secrets     ports.SecretStore
+	Clock       ports.Clock
+	IDs         ports.IDFactory
+	Redactor    security.Redactor
+	HTTP        ports.HttpPort
+	Zeus        ports.ZeusPort
+	LLM         ports.LlmPort
+	Catalog     ports.CatalogStore
+	Jobs        ports.Jobs
+	Logger      *observability.FamilyLogger
+	Metrics     observability.MetricsPort
+	RateLimiter *observability.TokenBucketLimiter
 }
 
 // runtime is the hexagonal wiring bundle (Python ZeusRuntime.Services).
@@ -44,19 +46,28 @@ type runtime struct {
 	mu     sync.Mutex
 	closed bool
 
-	cfg      config.RuntimeConfig
-	journal  journal.ExecutionJournal
-	secrets  ports.SecretStore
-	clock    ports.Clock
-	ids      ports.IDFactory
-	redactor security.Redactor
-	http     ports.HttpPort
-	zeus     ports.ZeusPort
-	llm      ports.LlmPort
-	catalog  ports.CatalogStore
-	jobs     ports.Jobs
-	logger   *observability.FamilyLogger
-	metrics  observability.MetricsPort
+	cfg         config.RuntimeConfig
+	journal     journal.ExecutionJournal
+	secrets     ports.SecretStore
+	clock       ports.Clock
+	ids         ports.IDFactory
+	redactor    security.Redactor
+	http        ports.HttpPort
+	zeus        ports.ZeusPort
+	llm         ports.LlmPort
+	catalog     ports.CatalogStore
+	jobs        ports.Jobs
+	logger      *observability.FamilyLogger
+	metrics     observability.MetricsPort
+	rateLimiter *observability.TokenBucketLimiter
+
+	zeusAPI    *api.ZeusAPI
+	agentAPI   *api.AgentAPI
+	catalogAPI *api.CatalogAPI
+	sessionAPI *api.SessionAPI
+	unitsAPI   *api.UnitsAPI
+	jobsAPI    *api.JobsAPI
+	debugAPI   *api.DebugAPI
 }
 
 func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
@@ -111,20 +122,25 @@ func newRuntime(cfg config.RuntimeConfig, opts Options) *runtime {
 	if jobs == nil && strings.TrimSpace(cfg.Jobs.HostURL) != "" {
 		jobs = jobshttp.New(cfg.Jobs.HostURL, jobshttp.Options{})
 	}
+	limiter := observability.NewTokenBucketLimiter()
+	if cfg.RateLimit.TypeaheadEnabled {
+		limiter.Configure("typeahead", cfg.RateLimit.TypeaheadRPS, cfg.RateLimit.TypeaheadBurst)
+	}
 	return &runtime{
-		cfg:      cfg,
-		journal:  j,
-		secrets:  sec,
-		clock:    clk,
-		ids:      ids,
-		redactor: red,
-		http:     httpPort,
-		zeus:     opts.Zeus,
-		llm:      opts.LLM,
-		catalog:  opts.Catalog,
-		jobs:     jobs,
-		logger:   lg,
-		metrics:  metrics,
+		cfg:         cfg,
+		journal:     j,
+		secrets:     sec,
+		clock:       clk,
+		ids:         ids,
+		redactor:    red,
+		http:        httpPort,
+		zeus:        opts.Zeus,
+		llm:         opts.LLM,
+		catalog:     opts.Catalog,
+		jobs:        jobs,
+		logger:      lg,
+		metrics:     metrics,
+		rateLimiter: limiter,
 	}
 }
 
@@ -139,18 +155,19 @@ func (r *runtime) services() Services {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return Services{
-		Journal:  r.journal,
-		Secrets:  r.secrets,
-		Clock:    r.clock,
-		IDs:      r.ids,
-		Redactor: r.redactor,
-		HTTP:     r.http,
-		Zeus:     r.zeus,
-		LLM:      r.llm,
-		Catalog:  r.catalog,
-		Jobs:     r.jobs,
-		Logger:   r.logger,
-		Metrics:  r.metrics,
+		Journal:     r.journal,
+		Secrets:     r.secrets,
+		Clock:       r.clock,
+		IDs:         r.ids,
+		Redactor:    r.redactor,
+		HTTP:        r.http,
+		Zeus:        r.zeus,
+		LLM:         r.llm,
+		Catalog:     r.catalog,
+		Jobs:        r.jobs,
+		Logger:      r.logger,
+		Metrics:     r.metrics,
+		RateLimiter: r.rateLimiter,
 	}
 }
 

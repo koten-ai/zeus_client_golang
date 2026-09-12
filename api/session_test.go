@@ -145,6 +145,7 @@ func TestSessionCreate409FailClosed(t *testing.T) {
 	cfg := config.Default()
 	cfg.Zeus.URL = srv.URL
 	cfg.Zeus.AuthMode = config.AuthNone
+	cfg.Settings.DurableSessions = true
 	cli := zeushttp.NewSessionClient(zeushttp.SessionClientOptions{
 		Endpoint: cfg.Zeus,
 		Secrets:  secretsenv.NewWithEnviron(map[string]string{}),

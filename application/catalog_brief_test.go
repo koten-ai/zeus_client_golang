@@ -26,6 +26,20 @@ func TestLiveModeCandidatesDedupesAnalytics(t *testing.T) {
 	}
 }
 
+func TestEnsureScopeBriefAlreadyPresentReturnsSameMap(t *testing.T) {
+	doc := map[string]any{
+		"messages": []any{map[string]any{"content": "## SCOPE BRIEF\nbucket=b\n"}},
+	}
+	out := EnsureScopeBrief(context.Background(), doc, nil, "b", "s", "analytics")
+	if out.Merged || out.Note != "scope_brief: already present" {
+		t.Fatalf("%+v", out)
+	}
+	doc["__mark"] = true
+	if out.Body["__mark"] != true {
+		t.Fatal("already-present must not clone")
+	}
+}
+
 func TestEnsureScopeBriefSkipsWithoutFetch(t *testing.T) {
 	doc := map[string]any{"messages": []any{map[string]any{"content": "locked"}}}
 	out := EnsureScopeBrief(context.Background(), doc, nil, "b", "s", "analytics")

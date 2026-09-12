@@ -113,17 +113,25 @@ func (c *Client) Zeus() *api.ZeusAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	svc := c.Services()
-	return api.NewZeusAPIWith(c, api.ZeusOptions{
-		Zeus:     svc.Zeus,
-		HTTP:     svc.HTTP,
-		Secrets:  svc.Secrets,
-		Journal:  c.Journal(),
-		Config:   c.Config(),
-		Version:  Version,
-		Redactor: svc.Redactor,
-		Log:      logFunc(svc.Logger),
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.zeusAPI != nil {
+		return r.zeusAPI
+	}
+	r.zeusAPI = api.NewZeusAPIWith(c, api.ZeusOptions{
+		Zeus:        r.zeus,
+		HTTP:        r.http,
+		Secrets:     r.secrets,
+		Journal:     r.journal,
+		Config:      r.cfg,
+		Version:     Version,
+		Redactor:    r.redactor,
+		Log:         logFunc(r.logger),
+		Metrics:     r.metrics,
+		RateLimiter: r.rateLimiter,
 	})
+	return r.zeusAPI
 }
 
 // Catalog is the catalog facade (load / info / contract.hash / mini_schema).
@@ -133,10 +141,17 @@ func (c *Client) Catalog() *api.CatalogAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	return api.NewCatalogAPI(api.CatalogOptions{
-		Store:  c.Services().Catalog,
-		Config: c.Config(),
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.catalogAPI != nil {
+		return r.catalogAPI
+	}
+	r.catalogAPI = api.NewCatalogAPI(api.CatalogOptions{
+		Store:  r.catalog,
+		Config: r.cfg,
 	})
+	return r.catalogAPI
 }
 
 // Units is the Mode 3 WorkUnit facade (ZCG-31). Isolated AgentTurn / ZeusDirect.
@@ -145,20 +160,25 @@ func (c *Client) Units() *api.UnitsAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	svc := c.Services()
-	cfg := c.Config()
-	return api.NewUnitsAPIWith(c, api.UnitsOptions{
-		LLM:     svc.LLM,
-		Zeus:    svc.Zeus,
-		Journal: c.Journal(),
-		IDs:     svc.IDs,
-		Config:  cfg,
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.unitsAPI != nil {
+		return r.unitsAPI
+	}
+	r.unitsAPI = api.NewUnitsAPIWith(c, api.UnitsOptions{
+		LLM:     r.llm,
+		Zeus:    r.zeus,
+		Journal: r.journal,
+		IDs:     r.ids,
+		Config:  r.cfg,
 		Version: Version,
-		Clock:   svc.Clock,
-		Catalog: svc.Catalog,
-		Log:     logFunc(svc.Logger),
-		Metrics: svc.Metrics,
+		Clock:   r.clock,
+		Catalog: r.catalog,
+		Log:     logFunc(r.logger),
+		Metrics: r.metrics,
 	})
+	return r.unitsAPI
 }
 
 // Jobs is the Mode 3 jobs facade (ZCG-39). Fail-closed when Options.Jobs is
@@ -171,12 +191,18 @@ func (c *Client) Jobs() *api.JobsAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	svc := c.Services()
-	return api.NewJobsAPIWith(c, api.JobsOptions{
-		Jobs:    svc.Jobs,
-		Journal: c.Journal(),
-		Clock:   svc.Clock,
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.jobsAPI != nil {
+		return r.jobsAPI
+	}
+	r.jobsAPI = api.NewJobsAPIWith(c, api.JobsOptions{
+		Jobs:    r.jobs,
+		Journal: r.journal,
+		Clock:   r.clock,
 	})
+	return r.jobsAPI
 }
 
 // BindJobs sets the jobs port after New. Pattern A demos construct
@@ -193,6 +219,7 @@ func (c *Client) BindJobs(j ports.Jobs) error {
 		return domain.NewJob(domain.CodeJobsUnavailable, "zeusclient")
 	}
 	c.rt.jobs = j
+	c.rt.jobsAPI = nil
 	return nil
 }
 
@@ -201,20 +228,25 @@ func (c *Client) Agent() *api.AgentAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	svc := c.Services()
-	cfg := c.Config()
-	return api.NewAgentAPIWith(c, api.AgentOptions{
-		LLM:     svc.LLM,
-		Zeus:    svc.Zeus,
-		Journal: c.Journal(),
-		IDs:     svc.IDs,
-		Config:  cfg,
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.agentAPI != nil {
+		return r.agentAPI
+	}
+	r.agentAPI = api.NewAgentAPIWith(c, api.AgentOptions{
+		LLM:     r.llm,
+		Zeus:    r.zeus,
+		Journal: r.journal,
+		IDs:     r.ids,
+		Config:  r.cfg,
 		Version: Version,
-		Clock:   svc.Clock,
-		Catalog: svc.Catalog,
-		Log:     logFunc(svc.Logger),
-		Metrics: svc.Metrics,
+		Clock:   r.clock,
+		Catalog: r.catalog,
+		Log:     logFunc(r.logger),
+		Metrics: r.metrics,
 	})
+	return r.agentAPI
 }
 
 func logFunc(lg *observability.FamilyLogger) func(level, msg string, attrs map[string]any) {
@@ -231,11 +263,17 @@ func (c *Client) Debug() *api.DebugAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	svc := c.Services()
-	return api.NewDebugAPIWith(c, api.DebugOptions{
-		Journal:  c.Journal(),
-		Redactor: svc.Redactor,
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.debugAPI != nil {
+		return r.debugAPI
+	}
+	r.debugAPI = api.NewDebugAPIWith(c, api.DebugOptions{
+		Journal:  r.journal,
+		Redactor: r.redactor,
 	})
+	return r.debugAPI
 }
 
 // Session is the durable-session facade (create / continue / rehydrate / trace).
@@ -246,16 +284,21 @@ func (c *Client) Session() *api.SessionAPI {
 	if c == nil || c.rt == nil {
 		return nil
 	}
-	svc := c.Services()
-	cfg := c.Config()
-	return api.NewSessionAPIWith(c, api.SessionOptions{
-		HTTP:     svc.HTTP,
-		Secrets:  svc.Secrets,
-		Config:   cfg,
+	r := c.rt
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sessionAPI != nil {
+		return r.sessionAPI
+	}
+	r.sessionAPI = api.NewSessionAPIWith(c, api.SessionOptions{
+		HTTP:     r.http,
+		Secrets:  r.secrets,
+		Config:   r.cfg,
 		Version:  Version,
-		Identity: cfg.Client,
-		Journal:  c.Journal(),
+		Identity: r.cfg.Client,
+		Journal:  r.journal,
 	})
+	return r.sessionAPI
 }
 
 // Services is the injected port bundle (Python ZeusRuntime.services).

@@ -234,12 +234,8 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 	prepared, _, _ := PrepareSettings(settings)
 	settings = prepared
 
-	chatReq := cloneAnyMap(req.ChatRequest)
-	if len(chatReq) > 0 {
-		inj := InjectSettingsFromClient(settings)
-		chatReq = ApplyControlPlaneInject(chatReq, inj)
-		chatReq = ApplyToolPathInject(chatReq, settings.IgnoreUserToolPathHints)
-		req.ChatRequest = chatReq
+	if len(req.ChatRequest) > 0 {
+		req.ChatRequest = injectBagB(req.ChatRequest, InjectSettingsFromClient(settings))
 	}
 
 	ids := opts.IDs
@@ -281,9 +277,11 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 	mwCtx := newMiddlewareContext(turnID, req.Message)
 	sessionHandle := req.Session
 
+	var jeSeq int
 	je := func(etype string, data map[string]any) {
+		jeSeq++
 		j.Append(journal.JournalEvent{
-			EventID:   etype + "_" + domain.NewZeusReqID()[:10],
+			EventID:   etype + "_" + strconv.Itoa(jeSeq),
 			TsMs:      time.Now().UnixMilli(),
 			Type:      etype,
 			Component: agentTurnComponent,
@@ -332,7 +330,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 		in.tools = req.Tools
 		in.chatRequest = req.ChatRequest
 		in.hubBaseURL = opts.DebugPolicy.HubBaseURL
-		in.detectiveOn = opts.DebugPolicy.DetectiveBriefing
+		in.detectiveOn = debugGatherOn(opts.DebugPolicy, opts.StampUser)
 		in.env = opts.Env
 		return finishTurn(in)
 	}
@@ -386,7 +384,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 	messages := []map[string]any{{"role": "system", "content": system}}
 	for _, pm := range req.PriorMessages {
 		if pm != nil {
-			messages = append(messages, cloneAnyMap(pm))
+			messages = append(messages, pm)
 		}
 	}
 	messages = append(messages, map[string]any{"role": "user", "content": req.Message})
@@ -589,7 +587,6 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 			}
 			if !aiProcess && outcome.ToolsWithPayload > 0 {
 				candidate := strings.TrimSpace(outcome.ToolArgSummary)
-				InspectJailbreak(mwCtx, candidate, "tool_arg_summary")
 				if mwCtx.boolData("hooks_must_refuse") {
 					notes = append(notes, "jailbreak.cheap_path_leak")
 					answer = ""
@@ -642,7 +639,6 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 		})
 		parsed = domain.ApplyPackSchema(parsed, req.PackSchema)
 		layer = &parsed
-		InspectJailbreak(mwCtx, layer.Summary, "summary")
 	}
 	rawAnswer := answer
 	prePolicy := rawAnswer
@@ -860,58 +856,67 @@ func finishTurn(in turnFinish) TurnResult {
 		flagsMap = in.decision.Flags
 	}
 	tokens := SumProviderTokens(in.steps, nil)
+	publicHops := in.hops
+	publicSteps := in.steps
+	if !in.detectiveOn {
+		publicHops = nil
+		publicSteps = nil
+	}
 	public := projectors.BuildPublicTrace(projectors.PublicTrace{
 		TurnID:              in.turnID,
 		Answer:              answer,
 		Status:              string(in.status),
 		Rounds:              in.rounds,
 		Notes:               in.notes,
-		Hops:                in.hops,
+		Hops:                publicHops,
 		AIProcessResult:     in.settings.AIProcessResult,
 		AIProcessResultExit: in.aiExit,
 		LayerA:              layerMap,
 		Policy:              policyName,
 		Flags:               flagsMap,
-		Steps:               in.steps,
+		Steps:               publicSteps,
 		Tokens:              tokens,
 		Session:             sessionBlock,
 		Stamp:               stampMap,
 	})
 	aiFlag := in.settings.AIProcessResult
 	totalMS := int(time.Since(in.t0).Milliseconds())
-	det := detective.SafeBuild(detective.BriefingArgs{
-		Enabled:             &in.detectiveOn,
-		Env:                 in.env,
-		TurnID:              in.turnID,
-		ChatID:              chat,
-		Answer:              answer,
-		Status:              string(in.status),
-		Rounds:              in.rounds,
-		Hops:                in.hops,
-		Notes:               in.notes,
-		Messages:            in.messages,
-		Catalog:             in.chatRequest,
-		Tools:               in.tools,
-		LayerA:              layerMap,
-		TotalMS:             &totalMS,
-		HubBaseURL:          in.hubBaseURL,
-		SessionID:           sid,
-		Target:              targetMap,
-		ContractStatus:      cst,
-		AIProcessResult:     &aiFlag,
-		AIProcessResultExit: in.aiExit,
-		PublicTrace:         public,
-		ZeusURL:             in.zeusURL,
-		ClientVersion:       in.version,
-		ExportRef:           in.turnID,
-	})
-	if det != nil {
-		public = cloneAnyMap(public)
-		public["detective"] = det
-	}
-	if pref == "" && det != nil {
-		if ov, ok := det["overview"].(map[string]any); ok {
-			pref = asString(ov["preferred_req_id"])
+	var det map[string]any
+	if in.detectiveOn {
+		det = detective.SafeBuild(detective.BriefingArgs{
+			Enabled:             &in.detectiveOn,
+			Env:                 in.env,
+			TurnID:              in.turnID,
+			ChatID:              chat,
+			Answer:              answer,
+			Status:              string(in.status),
+			Rounds:              in.rounds,
+			Hops:                in.hops,
+			Notes:               in.notes,
+			Messages:            in.messages,
+			Catalog:             in.chatRequest,
+			Tools:               in.tools,
+			LayerA:              layerMap,
+			TotalMS:             &totalMS,
+			HubBaseURL:          in.hubBaseURL,
+			SessionID:           sid,
+			Target:              targetMap,
+			ContractStatus:      cst,
+			AIProcessResult:     &aiFlag,
+			AIProcessResultExit: in.aiExit,
+			PublicTrace:         public,
+			ZeusURL:             in.zeusURL,
+			ClientVersion:       in.version,
+			ExportRef:           in.turnID,
+		})
+		if det != nil {
+			public = cloneAnyMap(public)
+			public["detective"] = det
+		}
+		if pref == "" && det != nil {
+			if ov, ok := det["overview"].(map[string]any); ok {
+				pref = asString(ov["preferred_req_id"])
+			}
 		}
 	}
 	hooks := in.hooksScore
@@ -920,7 +925,7 @@ func finishTurn(in turnFinish) TurnResult {
 	}
 	evCount := 0
 	if in.journal != nil {
-		evCount = len(in.journal.Events())
+		evCount = in.journal.Len()
 	}
 	if in.je != nil {
 		in.je(journal.EventTurnCompleted, map[string]any{
@@ -1209,7 +1214,7 @@ func executeToolCalls(ctx context.Context, o executeToolOpts) (ToolRoundOutcome,
 			hopRec[k] = v
 		}
 		if len(body) > 0 {
-			hopRec["result_json"] = cloneAnyMap(body)
+			hopRec["result_json"] = copyAnyMap(body)
 		}
 		out.Hops = append(out.Hops, hopRec)
 		out.Steps = append(out.Steps, map[string]any{
@@ -1292,9 +1297,20 @@ func insightHop(ctx context.Context, llm ports.LlmPort, messages *[]map[string]a
 }
 
 func mergeTurnSettings(def, req config.ClientSettings) config.ClientSettings {
-	out := def
+	if clientSettingsZero(req) {
+		return fillTurnSettings(def)
+	}
+	out := fillTurnSettings(def)
 	out.AIProcessResult = req.AIProcessResult
 	out.ForceTrace = req.ForceTrace
+	out.DurableSessions = req.DurableSessions
+	out.OverrideDefaults = req.OverrideDefaults
+	// Bools from req (no OR). Default true flags must be disable-able
+	// (ZCF-WISH-054 ignore_user_tool_path_hints=false → honor inject).
+	out.IgnoreUserToolPathHints = req.IgnoreUserToolPathHints
+	out.ToolTrailEnabled = req.ToolTrailEnabled
+	out.ToolTrailInject = req.ToolTrailInject
+	out.SoftRequirePolicyAction = req.SoftRequirePolicyAction
 	if req.MaxRounds != 0 {
 		out.MaxRounds = req.MaxRounds
 	}
@@ -1304,17 +1320,38 @@ func mergeTurnSettings(def, req config.ClientSettings) config.ClientSettings {
 	if req.ForceReturnRoundsLeft != 0 {
 		out.ForceReturnRoundsLeft = req.ForceReturnRoundsLeft
 	}
-	out.IgnoreUserToolPathHints = req.IgnoreUserToolPathHints || def.IgnoreUserToolPathHints
-	out.ToolTrailEnabled = req.ToolTrailEnabled || def.ToolTrailEnabled
-	out.ToolTrailInject = req.ToolTrailInject || def.ToolTrailInject
 	if req.ToolTrailMaxEntries != 0 {
 		out.ToolTrailMaxEntries = req.ToolTrailMaxEntries
 	}
 	if req.CompanyContext != "" {
 		out.CompanyContext = req.CompanyContext
 	}
+	if req.Locale != "" {
+		out.Locale = req.Locale
+	}
+	if req.Language != "" {
+		out.Language = req.Language
+	}
+	if req.Timezone != "" {
+		out.Timezone = req.Timezone
+	}
+	if req.Channel != "" {
+		out.Channel = req.Channel
+	}
+	if req.Market != "" {
+		out.Market = req.Market
+	}
+	if req.DeploymentID != "" {
+		out.DeploymentID = req.DeploymentID
+	}
+	if req.RulesetID != "" {
+		out.RulesetID = req.RulesetID
+	}
 	if len(req.Rules) > 0 {
 		out.Rules = req.Rules
+	}
+	if len(req.TenantRules) > 0 {
+		out.TenantRules = req.TenantRules
 	}
 	if len(req.Messages) > 0 {
 		out.Messages = req.Messages
@@ -1322,13 +1359,30 @@ func mergeTurnSettings(def, req config.ClientSettings) config.ClientSettings {
 	if len(req.StickyFlags) > 0 {
 		out.StickyFlags = req.StickyFlags
 	}
-	out.SoftRequirePolicyAction = req.SoftRequirePolicyAction || def.SoftRequirePolicyAction
 	if req.AppOutputOnError != "" {
 		out.AppOutputOnError = req.AppOutputOnError
 	}
 	if req.OutputRequest != nil {
 		out.OutputRequest = req.OutputRequest
 	}
+	return fillTurnSettings(out)
+}
+
+func clientSettingsZero(s config.ClientSettings) bool {
+	return s.MaxRounds == 0 && s.Mode == "" && s.CompanyContext == "" &&
+		s.AppOutputOnError == "" && s.Locale == "" && s.Language == "" &&
+		s.Timezone == "" && s.Channel == "" && s.Market == "" &&
+		s.DeploymentID == "" && s.RulesetID == "" &&
+		s.ForceReturnRoundsLeft == 0 && s.ToolTrailMaxEntries == 0 &&
+		!s.AIProcessResult && !s.ForceTrace && !s.DurableSessions &&
+		!s.SoftRequirePolicyAction && !s.IgnoreUserToolPathHints &&
+		!s.ToolTrailEnabled && !s.ToolTrailInject && !s.OverrideDefaults &&
+		len(s.StickyFlags) == 0 && len(s.Messages) == 0 &&
+		len(s.OutputRequest) == 0 && len(s.Rules) == 0 && len(s.TenantRules) == 0
+}
+
+func fillTurnSettings(in config.ClientSettings) config.ClientSettings {
+	out := in
 	if out.MaxRounds <= 0 {
 		out.MaxRounds = defaultMaxRounds
 	}
@@ -1371,10 +1425,8 @@ func systemFromRequest(req TurnRequest) string {
 
 func toolsFromRequest(req TurnRequest) []map[string]any {
 	if len(req.Tools) > 0 {
-		out := make([]map[string]any, 0, len(req.Tools))
-		for _, t := range req.Tools {
-			out = append(out, cloneAnyMap(t))
-		}
+		out := make([]map[string]any, len(req.Tools))
+		copy(out, req.Tools)
 		return out
 	}
 	cr := req.ChatRequest
@@ -1480,7 +1532,7 @@ func toolCallName(tc map[string]any) any {
 func parseToolArgs(raw any) map[string]any {
 	switch x := raw.(type) {
 	case map[string]any:
-		return cloneAnyMap(x)
+		return copyAnyMap(x)
 	case string:
 		var obj any
 		if json.Unmarshal([]byte(x), &obj) != nil {
@@ -1737,11 +1789,19 @@ func containsStr(ss []string, want string) bool {
 	return false
 }
 
-func cloneMessageSlice(in []map[string]any) []map[string]any {
-	out := make([]map[string]any, len(in))
-	for i, m := range in {
-		out[i] = cloneAnyMap(m)
+func debugGatherOn(policy config.DebugPolicy, stampUser string) bool {
+	if policy.DetectiveBriefing {
+		return true
 	}
+	return domain.ResolveStampUser(stampUser) == domain.HubUser
+}
+
+func cloneMessageSlice(in []map[string]any) []map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make([]map[string]any, len(in))
+	copy(out, in)
 	return out
 }
 
@@ -1749,14 +1809,16 @@ func cloneToolSlice(in []map[string]any) []map[string]any {
 	if in == nil {
 		return nil
 	}
-	return cloneMessageSlice(in)
+	out := make([]map[string]any, len(in))
+	copy(out, in)
+	return out
 }
 
 func mapsFromAny(in []any) []map[string]any {
 	out := make([]map[string]any, 0, len(in))
 	for _, v := range in {
 		if m, ok := v.(map[string]any); ok {
-			out = append(out, cloneAnyMap(m))
+			out = append(out, m)
 		}
 	}
 	return out

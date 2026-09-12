@@ -104,6 +104,22 @@ func TestHubProfileInsightDefault(t *testing.T) {
 	if !out.Debug.CaptureBodies {
 		t.Fatal("hub capture_bodies")
 	}
+	if !out.Debug.DetectiveBriefing {
+		t.Fatal("hub detective_briefing")
+	}
+}
+
+func TestDevelopmentDetectiveOff(t *testing.T) {
+	out, err := ApplyProfile(Default(), "development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Debug.DetectiveBriefing {
+		t.Fatal("product profile detective")
+	}
+	if out.Settings.DurableSessions {
+		t.Fatal("product profile durable_sessions")
+	}
 }
 
 func TestCIStillAllowsAuthModeNone(t *testing.T) {

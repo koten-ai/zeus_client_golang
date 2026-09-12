@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 // Package adapters holds driven adapters (zeushttp, llmopenai, catalogfs,
-// secretsenv, otlp, jobsfake, jobsma, jobshttp). Domain must not import this package.
+// secretsenv, jobsfake, jobsma, jobshttp). Domain must not import this package.
+// OTLP exporter is residual (family slog + REDACT only; see BLOCKED.md).
 //
 // ZCG-8 header helpers; ZCG-17 AuthResolver; ZCG-15 catalogfs; ZCG-13 Direct
 // verbs (zeushttp.Port); ZCG-19/ZCG-16 SessionClient (create/turn/rehydrate/trace);

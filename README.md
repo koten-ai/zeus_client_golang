@@ -54,6 +54,7 @@ func main() {
 
 Pins file: [`sdk_bootstrap.pins.json`](sdk_bootstrap.pins.json) (HOW_TO G0).
 Release notes: [`CHANGELOG.md`](CHANGELOG.md).
+Residuals (live smoke, COMPAT, OTLP, semantic cache, MATRIX row): [`BLOCKED.md`](BLOCKED.md).
 Never invent production `contract_hash` / Hub stamps. Never put API keys in pins.
 Do not claim `supported` or “production ready”.
 

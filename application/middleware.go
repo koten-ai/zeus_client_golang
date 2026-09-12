@@ -397,7 +397,6 @@ func (s SecurityHooks) BeforeZeus(ctx *MiddlewareContext, name string, args map[
 		if s.verbDenied(ctx, name) {
 			denyVerb(ctx, name)
 		}
-		InspectJailbreak(ctx, args, "tool_args")
 	}
 	return args
 }
@@ -440,6 +439,4 @@ func (SecurityHooks) AfterZeus(ctx *MiddlewareContext, _ string, _ int, body any
 	ctx.Data["tool_body_override"] = string(raw)
 }
 
-func (SecurityHooks) OnTurnEnd(ctx *MiddlewareContext, answer string) {
-	InspectJailbreak(ctx, answer, "answer")
-}
+func (SecurityHooks) OnTurnEnd(*MiddlewareContext, string) {}

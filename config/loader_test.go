@@ -41,10 +41,35 @@ func repoPins(t *testing.T) string {
 	return p
 }
 
+func TestOverlaySettingsHonorIgnoreFalse(t *testing.T) {
+	base := Default().Settings
+	if !base.IgnoreUserToolPathHints {
+		t.Fatal("default ignore")
+	}
+	over := base
+	over.IgnoreUserToolPathHints = false
+	got := OverlaySettings(base, over)
+	if got.IgnoreUserToolPathHints {
+		t.Fatal("false must win")
+	}
+	if got.MaxRounds != base.MaxRounds || got.Mode != base.Mode {
+		t.Fatalf("%+v", got)
+	}
+	if !got.ToolTrailEnabled || !got.SoftRequirePolicyAction {
+		t.Fatal("other defaults kept from full overlay")
+	}
+}
+
 func TestAIProcessResultPackageDefaultFalse(t *testing.T) {
 	cfg := Default()
 	if cfg.Settings.AIProcessResult {
 		t.Fatal("ai_process_result")
+	}
+	if cfg.Settings.DurableSessions {
+		t.Fatal("durable_sessions package default")
+	}
+	if cfg.Debug.DetectiveBriefing {
+		t.Fatal("detective_briefing package default")
 	}
 	if cfg.Settings.IgnoreUserToolPathHints != true {
 		t.Fatal("ignore_user_tool_path_hints")

@@ -4,10 +4,13 @@ package api
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/koten-ai/zeus_client_golang/adapters/catalogfs"
+	"github.com/koten-ai/zeus_client_golang/application"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
 	"github.com/koten-ai/zeus_client_golang/ports"
@@ -55,6 +58,13 @@ type CatalogAPI struct {
 
 	mu          sync.Mutex
 	lastLoadLog map[string]any
+	cache       map[string]catalogCacheEntry
+}
+
+type catalogCacheEntry struct {
+	path   string
+	mtime  int64
+	loaded domain.LoadedCatalog
 }
 
 // NewCatalogAPI binds store + config. Nil-safe: methods fail closed.
@@ -165,16 +175,87 @@ func ctxErr(ctx context.Context) error {
 	return nil
 }
 
+func catalogMemoKey(k ports.CatalogKey) string {
+	return k.Mode + "\x00" + k.Bucket + "\x00" + k.Scope + "\x00" + k.BaseID
+}
+
+func (c *CatalogAPI) cacheHit(key ports.CatalogKey) (domain.LoadedCatalog, bool) {
+	if c == nil {
+		return domain.LoadedCatalog{}, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cache == nil {
+		return domain.LoadedCatalog{}, false
+	}
+	ent, ok := c.cache[catalogMemoKey(key)]
+	if !ok || ent.path == "" {
+		return domain.LoadedCatalog{}, false
+	}
+	st, err := os.Stat(ent.path)
+	if err != nil || st.ModTime().UnixNano() != ent.mtime {
+		delete(c.cache, catalogMemoKey(key))
+		return domain.LoadedCatalog{}, false
+	}
+	return cloneLoadedCatalog(ent.loaded), true
+}
+
+func (c *CatalogAPI) remember(key ports.CatalogKey, loaded domain.LoadedCatalog) {
+	if c == nil || strings.TrimSpace(loaded.Path) == "" {
+		return
+	}
+	st, err := os.Stat(loaded.Path)
+	if err != nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.cache == nil {
+		c.cache = map[string]catalogCacheEntry{}
+	}
+	c.cache[catalogMemoKey(key)] = catalogCacheEntry{
+		path:   loaded.Path,
+		mtime:  st.ModTime().UnixNano(),
+		loaded: cloneLoadedCatalog(loaded),
+	}
+}
+
+func cloneLoadedCatalog(in domain.LoadedCatalog) domain.LoadedCatalog {
+	out := in
+	out.Body = cloneJSONMap(in.Body)
+	out.ResponseOutputSchema = cloneJSONMap(in.ResponseOutputSchema)
+	out.ResponseOutputExample = cloneJSONMap(in.ResponseOutputExample)
+	return out
+}
+
+func cloneJSONMap(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
+	raw, err := json.Marshal(m)
+	if err != nil {
+		return m
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return m
+	}
+	return out
+}
+
 // Load is catalog.load — fail-closed FS resolve, extract stamp, floor check.
 func (c *CatalogAPI) Load(ctx context.Context, params LoadParams) (domain.LoadedCatalog, error) {
 	if err := ctxErr(ctx); err != nil {
 		return domain.LoadedCatalog{}, err
 	}
+	key := c.key(params)
+	if hit, ok := c.cacheHit(key); ok {
+		return hit, nil
+	}
 	store, err := c.store()
 	if err != nil {
 		return domain.LoadedCatalog{}, err
 	}
-	key := c.key(params)
 	var loaded domain.LoadedCatalog
 	if rich, ok := store.(richCatalogStore); ok {
 		loaded, err = rich.LoadRich(ctx, key)
@@ -223,6 +304,31 @@ func (c *CatalogAPI) Load(ctx context.Context, params LoadParams) (domain.Loaded
 		"result":        "ok",
 		"stamp_present": stampPresent,
 	})
+	c.remember(key, loaded)
+	return loaded, nil
+}
+
+// EnsureScopeBrief merges a live ## SCOPE BRIEF when the catalog has none.
+// Fetch is nil this train (no catalog_remote adapter) — same skip note as Python.
+func (c *CatalogAPI) EnsureScopeBrief(ctx context.Context, doc map[string]any, mode string, target config.DataTarget) application.ScopeBriefResult {
+	t := c.target(&target)
+	m := c.mode(mode)
+	return application.EnsureScopeBrief(ctx, doc, nil, t.Bucket, t.Scope, m)
+}
+
+// LoadForTurn is disk load plus optional live SCOPE BRIEF merge (Python load_for_turn).
+func (c *CatalogAPI) LoadForTurn(ctx context.Context, params LoadParams) (domain.LoadedCatalog, error) {
+	loaded, err := c.Load(ctx, params)
+	if err != nil {
+		return domain.LoadedCatalog{}, err
+	}
+	result := c.EnsureScopeBrief(ctx, loaded.Body, c.mode(params.Mode), c.target(params.Target))
+	loaded.Body = result.Body
+	if result.Merged {
+		loaded.Source = loaded.Source + " + live scope brief"
+	} else if result.Note != "" && result.Note != "scope_brief: already present" && domain.ExtractScopeBrief(result.Body) == "" {
+		loaded.Source = loaded.Source + "; " + result.Note
+	}
 	return loaded, nil
 }
 

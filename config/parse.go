@@ -122,6 +122,9 @@ func rstripSlash(s string) string {
 }
 
 func copyStringMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
 	out := make(map[string]string, len(m))
 	for k, v := range m {
 		out[k] = v
@@ -130,6 +133,9 @@ func copyStringMap(m map[string]string) map[string]string {
 }
 
 func copyBoolMap(m map[string]bool) map[string]bool {
+	if m == nil {
+		return nil
+	}
 	out := make(map[string]bool, len(m))
 	for k, v := range m {
 		out[k] = v
@@ -138,6 +144,9 @@ func copyBoolMap(m map[string]bool) map[string]bool {
 }
 
 func copyAnyMap(m map[string]any) map[string]any {
+	if m == nil {
+		return nil
+	}
 	out := make(map[string]any, len(m))
 	for k, v := range m {
 		out[k] = v

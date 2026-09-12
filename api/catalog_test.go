@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/koten-ai/zeus_client_golang/config"
@@ -147,6 +148,25 @@ func TestCatalogAPILoadMockAndInfo(t *testing.T) {
 	}
 	if len(logs) == 0 || logs[0]["msg"] != "zeus_client.catalog.loaded" {
 		t.Fatalf("logs %#v", logs)
+	}
+}
+
+func TestCatalogLoadForTurnBindsSchemaAndSkipsLiveBrief(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	seedMock(t, dir)
+	cfg := config.Default()
+	cfg.ChatRequestsDir = dir
+	api := NewCatalogAPI(CatalogOptions{Config: cfg})
+	loaded, err := api.LoadForTurn(ctx, LoadParams{Mode: "analytics"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ResponseOutputSchema == nil || !domain.SchemaRequiredFourDefined(loaded.ResponseOutputSchema) {
+		t.Fatal("schema")
+	}
+	if !strings.Contains(loaded.Source, "live fetch skipped") {
+		t.Fatalf("source %q", loaded.Source)
 	}
 }
 

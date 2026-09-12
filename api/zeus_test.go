@@ -19,6 +19,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/application"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
+	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
 )
 
@@ -73,6 +74,71 @@ func loadWire(t *testing.T, rel string) wireDoc {
 		t.Fatal(err)
 	}
 	return doc
+}
+
+func TestSearchSuggestShortQueryDoesNotConsumeLimiter(t *testing.T) {
+	z := &recZeus{}
+	lim := observability.NewTokenBucketLimiter()
+	lim.Configure("typeahead", 1, 1)
+	cfg := config.Default()
+	cfg.RateLimit = config.RateLimitPolicy{TypeaheadEnabled: true, TypeaheadRPS: 1, TypeaheadBurst: 1}
+	api := NewZeusAPIWith("host", ZeusOptions{
+		Zeus: z, Config: cfg, RateLimiter: lim,
+	})
+	got, err := api.SearchSuggest(context.Background(), "a", SuggestCallOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Count != 0 || z.n.Load() != 0 {
+		t.Fatalf("short query must skip FTS: %+v hops=%d", got, z.n.Load())
+	}
+	if _, err := api.SearchSuggest(context.Background(), "ab", SuggestCallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if z.n.Load() != 1 {
+		t.Fatalf("second call should hit FTS hops=%d", z.n.Load())
+	}
+}
+
+func TestSearchSuggestRateLimited(t *testing.T) {
+	z := &recZeus{
+		hop: ports.VerbHopResult{
+			OK: true, StatusCode: 200, ReqID: "fts-1",
+			Body: map[string]any{"result": map[string]any{"items": []any{}}},
+		},
+	}
+	lim := observability.NewTokenBucketLimiter()
+	lim.Configure("typeahead", 1, 1)
+	metrics := observability.NewInMemoryMetrics()
+	cfg := config.Default()
+	cfg.RateLimit = config.RateLimitPolicy{TypeaheadEnabled: true, TypeaheadRPS: 1, TypeaheadBurst: 1}
+	api := NewZeusAPIWith("host", ZeusOptions{
+		Zeus: z, Config: cfg, RateLimiter: lim, Metrics: metrics,
+	})
+	if _, err := api.SearchSuggest(context.Background(), "ab", SuggestCallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := api.SearchSuggest(context.Background(), "cd", SuggestCallOptions{})
+	requireCode(t, err, domain.CodeClientRateLimited)
+	snap := metrics.Snapshot()
+	counters, _ := snap["counters"].(map[string]any)
+	if _, ok := counters["zeus_client_rate_limited_total"]; !ok {
+		t.Fatalf("metrics %v", snap)
+	}
+}
+
+func TestCallRecordsHopMetrics(t *testing.T) {
+	z := &recZeus{}
+	metrics := observability.NewInMemoryMetrics()
+	api := NewZeusAPIWith("host", ZeusOptions{Zeus: z, Config: config.Default(), Metrics: metrics})
+	if _, err := api.Find(context.Background(), map[string]any{"entity_type": "Beer"}, CallOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	snap := metrics.Snapshot()
+	counters, _ := snap["counters"].(map[string]any)
+	if _, ok := counters["zeus_client_zeus_hops_total"]; !ok {
+		t.Fatalf("metrics %v", snap)
+	}
 }
 
 func TestCallAndSearchPipelineRejectedNoHTTP(t *testing.T) {

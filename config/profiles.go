@@ -41,7 +41,7 @@ func ApplyProfile(cfg RuntimeConfig, profile string) (RuntimeConfig, error) {
 	case "dev", "development":
 		cfg.Profile = "development"
 		cfg.Redaction = RedactionPolicy{Enabled: true, PreviewMaxChars: 16384}
-		cfg.Debug.DetectiveBriefing = true
+		cfg.Debug.DetectiveBriefing = false
 		cfg.Debug.CaptureBodies = true
 		cfg.Debug.TransportReplay = true
 		level := cfg.Logging.Level
@@ -53,7 +53,7 @@ func ApplyProfile(cfg RuntimeConfig, profile string) (RuntimeConfig, error) {
 	case "prod", "production":
 		cfg.Profile = "production"
 		cfg.Redaction = RedactionPolicy{Enabled: true, PreviewMaxChars: 2048}
-		cfg.Debug.DetectiveBriefing = true
+		cfg.Debug.DetectiveBriefing = false
 		cfg.Debug.CaptureBodies = false
 		cfg.Debug.TransportReplay = true
 		cfg.Settings = cfg.Settings.withAIProcessResult(false)
@@ -75,7 +75,7 @@ func ApplyProfile(cfg RuntimeConfig, profile string) (RuntimeConfig, error) {
 	case "ci":
 		cfg.Profile = "ci"
 		cfg.Redaction = RedactionPolicy{Enabled: true, PreviewMaxChars: 4096}
-		cfg.Debug.DetectiveBriefing = true
+		cfg.Debug.DetectiveBriefing = false
 		cfg.Debug.CaptureBodies = false
 		cfg.Debug.TransportReplay = true
 		cfg.Settings = cfg.Settings.withAIProcessResult(false)
@@ -91,7 +91,7 @@ func ApplyProfile(cfg RuntimeConfig, profile string) (RuntimeConfig, error) {
 	default:
 		cfg.Profile = name
 		cfg.Redaction = RedactionPolicy{Enabled: true, PreviewMaxChars: 16384}
-		cfg.Debug.DetectiveBriefing = true
+		cfg.Debug.DetectiveBriefing = false
 		cfg.Debug.CaptureBodies = true
 		cfg.Debug.TransportReplay = true
 		return cfg, nil

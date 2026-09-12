@@ -141,6 +141,21 @@ func TestInjectIdempotentSecondPass(t *testing.T) {
 	}
 }
 
+func TestBagBInjectSecondPassReturnsSameMap(t *testing.T) {
+	chat := catalogWithBrief()
+	settings := mustPrepare(t, map[string]any{"company_context": "Once only brand"})
+	once := ApplyBagBInject(chat, settings)
+	once["__mark"] = true
+	twice := ApplyBagBInject(once, settings)
+	if twice["__mark"] != true {
+		t.Fatal("second pass must not clone when headings are present")
+	}
+	sys := twice["messages"].([]any)[0].(map[string]any)["content"].(string)
+	if strings.Count(sys, ToolPathHeading) != 1 {
+		t.Fatalf("tool path count %d", strings.Count(sys, ToolPathHeading))
+	}
+}
+
 func TestInjectEmptySettingsReturnsSameObject(t *testing.T) {
 	chat := catalogWithBrief()
 	out := ApplyControlPlaneInject(chat, InjectSettings{})

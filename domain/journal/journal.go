@@ -12,6 +12,7 @@ import (
 type ExecutionJournal interface {
 	Append(event JournalEvent)
 	Events() []JournalEvent
+	Len() int
 	GetPayload(ref string) (data []byte, ok bool)
 	Export() JournalExport
 }
@@ -55,6 +56,16 @@ func (j *InMemoryJournal) Events() []JournalEvent {
 		out[i] = freezeEvent(e)
 	}
 	return out
+}
+
+// Len is the event count without copying the slice.
+func (j *InMemoryJournal) Len() int {
+	if j == nil {
+		return 0
+	}
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return len(j.evs)
 }
 
 // GetPayload copies stored bytes. Missing refs return ok=false.

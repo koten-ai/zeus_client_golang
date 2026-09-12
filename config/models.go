@@ -148,6 +148,70 @@ func (s ClientSettings) withAIProcessResult(v bool) ClientSettings {
 	return s
 }
 
+// OverlaySettings is Python `settings or default` when the caller passed a
+// non-nil ClientSettings: bools come from over (so IgnoreUserToolPathHints=false
+// can win — ZCF-WISH-054); empty strings / zero ints / empty maps fill from base.
+// Pass a full settings value (copy Default/Config then flip fields), not a
+// partial zero struct, or true-default bools other than the ones you set go false.
+func OverlaySettings(base, over ClientSettings) ClientSettings {
+	out := over
+	if out.MaxRounds == 0 {
+		out.MaxRounds = base.MaxRounds
+	}
+	if out.Mode == "" {
+		out.Mode = base.Mode
+	}
+	if out.AppOutputOnError == "" {
+		out.AppOutputOnError = base.AppOutputOnError
+	}
+	if out.ForceReturnRoundsLeft == 0 {
+		out.ForceReturnRoundsLeft = base.ForceReturnRoundsLeft
+	}
+	if out.ToolTrailMaxEntries == 0 {
+		out.ToolTrailMaxEntries = base.ToolTrailMaxEntries
+	}
+	if out.CompanyContext == "" {
+		out.CompanyContext = base.CompanyContext
+	}
+	if out.Locale == "" {
+		out.Locale = base.Locale
+	}
+	if out.Language == "" {
+		out.Language = base.Language
+	}
+	if out.Timezone == "" {
+		out.Timezone = base.Timezone
+	}
+	if out.Channel == "" {
+		out.Channel = base.Channel
+	}
+	if out.Market == "" {
+		out.Market = base.Market
+	}
+	if out.DeploymentID == "" {
+		out.DeploymentID = base.DeploymentID
+	}
+	if out.RulesetID == "" {
+		out.RulesetID = base.RulesetID
+	}
+	if len(out.StickyFlags) == 0 {
+		out.StickyFlags = base.StickyFlags
+	}
+	if len(out.Messages) == 0 {
+		out.Messages = base.Messages
+	}
+	if len(out.OutputRequest) == 0 {
+		out.OutputRequest = base.OutputRequest
+	}
+	if len(out.Rules) == 0 {
+		out.Rules = base.Rules
+	}
+	if len(out.TenantRules) == 0 {
+		out.TenantRules = base.TenantRules
+	}
+	return out
+}
+
 // Semantic cache nested knobs (L0 session.semantic_cache). Master default off.
 type SemanticCacheRecallConfig struct {
 	Enabled       bool
@@ -334,6 +398,8 @@ func (c RuntimeConfig) String() string {
 }
 
 // Default is Python RuntimeConfig() — profile name set, profile policies not applied.
+// Detective briefing and durable sessions are off (product Q&A). Hub profile
+// / StampUser=admin / debug.detective_briefing=true turns detective on.
 func Default() RuntimeConfig {
 	return RuntimeConfig{
 		Profile: "development",
@@ -360,7 +426,7 @@ func Default() RuntimeConfig {
 			AIProcessResult:         false,
 			MaxRounds:               8,
 			Mode:                    "analytics",
-			DurableSessions:         true,
+			DurableSessions:         false,
 			StickyFlags:             map[string]bool{},
 			Messages:                map[string]string{},
 			SoftRequirePolicyAction: true,
@@ -373,7 +439,7 @@ func Default() RuntimeConfig {
 		},
 		Retry:          RetryPolicy{MaxAttempts: 3, BaseDelayMS: 200, MaxDelayMS: 5000, Jitter: true},
 		Redaction:      RedactionPolicy{Enabled: true, PreviewMaxChars: 2048},
-		Debug:          DebugPolicy{DetectiveBriefing: true, CaptureBodies: false, TransportReplay: true, Rewind: false},
+		Debug:          DebugPolicy{DetectiveBriefing: false, CaptureBodies: false, TransportReplay: true, Rewind: false},
 		RateLimit:      RateLimitPolicy{TypeaheadEnabled: true, TypeaheadRPS: 10, TypeaheadBurst: 20},
 		Logging:        LoggingPolicy{Level: "info", Redact: true, ServiceName: "zeus_client"},
 		Jobs:           JobsConfig{WatchTransport: "sse", Models: map[string]any{}},
@@ -544,6 +610,9 @@ func nilIfEmpty(s string) any {
 }
 
 func copyStrings(in []string) []string {
+	if in == nil {
+		return nil
+	}
 	out := make([]string, len(in))
 	copy(out, in)
 	return out
