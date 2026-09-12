@@ -1,0 +1,19 @@
+{
+  "id": "L2.policy.matrix.001",
+  "level": "L2",
+  "family": "policy",
+  "floor": "client-floor-5",
+  "maps_to": ["ZC-WISH-010", "ZC-WISH-013", "ZC-WISH-014", "POLICY_TABLE_SPEC"],
+  "title": "Policy table matrix — same reason codes across languages",
+  "pins": {
+    "suite_version": "conformance-0.1-dev",
+    "mock": true
+  },
+  "input": {
+    "rows_path": "rows.json"
+  },
+  "expect": {
+    "all_rows_match": true,
+    "row_count": 6
+  }
+}

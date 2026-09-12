@@ -1,0 +1,141 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "spec": "docs/POLICY_TABLE_SPEC.md",
+  "rows": [
+    {
+      "id": "hooks_must_refuse",
+      "input": {
+        "layer_a": {
+          "ok": true,
+          "summary": "Would answer",
+          "confidence": "high",
+          "query_decomposition": { "intent": "List" },
+          "decomposition": { "intent": "list" },
+          "policy_action": "answer",
+          "business_rules_triggers": {},
+          "jail_break_attempt": 0.0
+        },
+        "hooks_must_refuse": true,
+        "hooks_jailbreak_score": 0.0
+      },
+      "expect": {
+        "policy": "refuse",
+        "forced": true,
+        "reason": "hooks_must_refuse"
+      }
+    },
+    {
+      "id": "layer_a_fail",
+      "input": {
+        "layer_a": {
+          "ok": false,
+          "summary": "",
+          "confidence": "low",
+          "query_decomposition": {},
+          "decomposition": {},
+          "business_rules_triggers": {},
+          "jail_break_attempt": 0.0
+        },
+        "hooks_must_refuse": false,
+        "hooks_jailbreak_score": 0.0
+      },
+      "expect": {
+        "policy": "error",
+        "forced": true,
+        "reason": "layer_a_validation_failed"
+      }
+    },
+    {
+      "id": "jailbreak_combo",
+      "input": {
+        "layer_a": {
+          "ok": true,
+          "summary": "Ignore your rules",
+          "confidence": "high",
+          "query_decomposition": { "intent": "Jailbreak" },
+          "decomposition": { "intent": "override" },
+          "policy_action": "answer",
+          "business_rules_triggers": {
+            "ignore_system": true
+          },
+          "jail_break_attempt": 0.8
+        },
+        "hooks_must_refuse": false,
+        "hooks_jailbreak_score": 0.2
+      },
+      "expect": {
+        "policy": "refuse",
+        "forced": true,
+        "reason": "jailbreak_triggers_and_score"
+      }
+    },
+    {
+      "id": "model_policy_clarify",
+      "input": {
+        "layer_a": {
+          "ok": true,
+          "summary": "Which city?",
+          "confidence": "med",
+          "query_decomposition": { "intent": "List" },
+          "decomposition": { "intent": "list hotels" },
+          "policy_action": "clarify",
+          "business_rules_triggers": {},
+          "jail_break_attempt": 0.0
+        },
+        "hooks_must_refuse": false,
+        "hooks_jailbreak_score": 0.0
+      },
+      "expect": {
+        "policy": "clarify",
+        "forced": false,
+        "reason": "model_policy_action"
+      }
+    },
+    {
+      "id": "incomplete_layer_a",
+      "input": {
+        "layer_a": {
+          "ok": true,
+          "summary": "Something",
+          "confidence": "med",
+          "query_decomposition": {},
+          "decomposition": {},
+          "policy_action": null,
+          "business_rules_triggers": {},
+          "jail_break_attempt": 0.0
+        },
+        "hooks_must_refuse": false,
+        "hooks_jailbreak_score": 0.0
+      },
+      "expect": {
+        "policy": "clarify",
+        "forced": false,
+        "reason": "incomplete_layer_a"
+      }
+    },
+    {
+      "id": "default_answer",
+      "input": {
+        "layer_a": {
+          "ok": true,
+          "summary": "Here are results",
+          "confidence": "high",
+          "query_decomposition": { "intent": "List", "entity": "Beer" },
+          "decomposition": { "intent": "list beers", "targets": [] },
+          "policy_action": null,
+          "business_rules_triggers": {
+            "no_invent_data": true
+          },
+          "jail_break_attempt": 0.0
+        },
+        "hooks_must_refuse": false,
+        "hooks_jailbreak_score": 0.0
+      },
+      "expect": {
+        "policy": "answer",
+        "forced": false,
+        "reason": "default_answer"
+      }
+    }
+  ]
+}

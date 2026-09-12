@@ -1,0 +1,23 @@
+{
+  "_kit": "MOCK_NOT_FOR_PRODUCTION",
+  "summary": "Found 2 fruit beers including Fruit Stand Ale.",
+  "confidence": "high",
+  "query_decomposition": {
+    "intent": "List",
+    "entity": "Beer"
+  },
+  "decomposition": {
+    "intent": "list fruit beers",
+    "targets": [{ "entity_type": "Beer" }],
+    "predicates": {},
+    "output": "rows"
+  },
+  "business_rules_triggers": {
+    "no_invent_data": true,
+    "ignore_system": false
+  },
+  "policy_action": "answer",
+  "jail_break_attempt": 0.0,
+  "subject_confidence": 0.91,
+  "wish_i_knew": []
+}

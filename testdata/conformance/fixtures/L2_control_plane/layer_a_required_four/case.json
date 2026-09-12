@@ -1,0 +1,27 @@
+{
+  "id": "L2.layer_a.required_four.001",
+  "level": "L2",
+  "family": "layer_a",
+  "floor": "client-floor-5",
+  "maps_to": ["ZC-WISH-011", "API_LAYER_A", "CHECKLIST-C"],
+  "title": "Validate required four; reject missing summary",
+  "pins": {
+    "suite_version": "conformance-0.1-dev",
+    "mock": true,
+    "schema": "fixtures/catalogs/mock_base5_minimal/response_output_schema.min.json"
+  },
+  "input": {
+    "valid_path": "conformance/goldens/layer_a.happy.object_triggers.json",
+    "invalid": {
+      "summary": "",
+      "confidence": "high",
+      "query_decomposition": { "intent": "List" },
+      "decomposition": { "intent": "x" }
+    }
+  },
+  "expect": {
+    "valid.ok": true,
+    "invalid.ok": false,
+    "invalid.error_class": "layer_a_validation_failed"
+  }
+}
