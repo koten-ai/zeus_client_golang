@@ -1,0 +1,32 @@
+{
+  "id": "L1.loop.single_tool_return.001",
+  "level": "L1",
+  "family": "agent_loop",
+  "floor": "client-floor-1",
+  "maps_to": ["ZC-WISH-015", "MULTI_ROUND_CLIENT", "AGENT_LOOP_SPEC"],
+  "title": "Mock LLM: one search tool call then return Layer A",
+  "pins": {
+    "suite_version": "conformance-0.1-dev",
+    "mock": true,
+    "base_id": "base-5",
+    "ai_process_result": false
+  },
+  "input": {
+    "catalog_path": "fixtures/catalogs/mock_base5_minimal/chat_request.mock.json",
+    "llm_script": "wire/llm_tool_round.script.json",
+    "zeus_mocks": {
+      "search": "wire/v2_search.response.json"
+    },
+    "user_message": "Find fruit beers"
+  },
+  "expect": {
+    "result": true,
+    "layer_a.required_four": true,
+    "layer_a.summary_nonempty": true,
+    "decision.policy": "answer",
+    "decision.reason": "model_policy_action",
+    "req_ids.count_gte": 1,
+    "messages.has_tool_result": true,
+    "g2_not_in_ui_view": true
+  }
+}

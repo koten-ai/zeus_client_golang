@@ -109,12 +109,23 @@ func (c *Client) Catalog() *api.CatalogAPI {
 	})
 }
 
-// Agent is the Mode 1 agent-plane facade. run_turn lands in ZCG-22.
+// Agent is the Mode 1 agent-plane facade (ZCG-24 run_turn).
 func (c *Client) Agent() *api.AgentAPI {
-	if c == nil {
+	if c == nil || c.rt == nil {
 		return nil
 	}
-	return api.NewAgentAPI(c)
+	svc := c.Services()
+	cfg := c.Config()
+	return api.NewAgentAPIWith(c, api.AgentOptions{
+		LLM:     svc.LLM,
+		Zeus:    svc.Zeus,
+		Journal: c.Journal(),
+		IDs:     svc.IDs,
+		Config:  cfg,
+		Version: Version,
+		Clock:   svc.Clock,
+		Catalog: svc.Catalog,
+	})
 }
 
 // Session is the durable-session facade (create / continue / rehydrate / trace).
