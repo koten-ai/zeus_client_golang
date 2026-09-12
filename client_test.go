@@ -452,6 +452,33 @@ func TestClientJobsUnavailableWithoutHost(t *testing.T) {
 	}
 }
 
+func TestBindJobsNilSafeAndClosed(t *testing.T) {
+	var nilClient *Client
+	if err := nilClient.BindJobs(nil); err == nil {
+		t.Fatal("nil Client BindJobs")
+	}
+	c, err := New(isolatedOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.BindJobs(nil); err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Jobs().Run(context.Background(), "fan-out", api.JobsRunParams{
+		Units: []domain.UnitConfig{clientDirectUnit("u1", "east", "find")},
+	})
+	de, ok := domain.AsError(err)
+	if !ok || de.Code != domain.CodeJobsUnavailable {
+		t.Fatalf("got %v want 130001", err)
+	}
+	if err := c.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.BindJobs(nil); err == nil {
+		t.Fatal("BindJobs after Close")
+	}
+}
+
 func TestClientJobsInjectedFake(t *testing.T) {
 	zeus := &recordingJobsZeus{}
 	cfg := config.RuntimeConfig{

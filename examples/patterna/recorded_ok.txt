@@ -1,0 +1,16 @@
+zeus_client_golang 0.1.0  claim=candidate  multi_agent=demo (not supported)
+mode=recorded partial=false
+goal=Fruit beer sales shortlist + inventory risk on those styles
+pack=desk
+everyday Q&A stays Mode 1; this demo only calls Jobs().Run
+budgets max_workers=4 wall_ms=60000 max_waves=2
+llm.roles worker=fast-worker (AgentTurn); orch/advisor configured, PlannerStatic+AdvisorOff
+isolation: distinct scope triples; no share_session_id; bags not shared
+unit unit_sales kind=agent_turn zeus_url=http://127.0.0.1:8080 beer-sample/sales/_default
+unit unit_inventory kind=zeus_direct zeus_url=http://127.0.0.1:8080 inventory/east/_default
+job_id=job_447c105f95f9 handle_status=running
+status=ok partial=false seq=9
+answer=goal="Fruit beer sales shortlist + inventory risk on those styles" units_ok=2 units_fail=0 dead_end=0
+unit_summary unit_id=unit_sales status=ok error_code=<nil>
+unit_summary unit_id=unit_inventory status=ok error_code=<nil>
+events 1:job.started 2:wave.started 3:unit.started 4:unit.started 5:unit.progress 6:unit.progress 7:unit.finished 8:unit.finished 9:job.finished

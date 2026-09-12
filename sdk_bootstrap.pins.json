@@ -17,7 +17,7 @@
     "claim_level": "candidate",
     "comment": "candidate|partial|supported — never 'supported' until suite required cases green + human MATRIX",
     "modes": ["agent", "direct"],
-    "multi_agent": "docs",
+    "multi_agent": "demo",
     "plugins": "no"
   },
 

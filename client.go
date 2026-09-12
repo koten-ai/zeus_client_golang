@@ -5,6 +5,7 @@ package zeusclient
 import (
 	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
+	"github.com/koten-ai/zeus_client_golang/domain"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
 	"github.com/koten-ai/zeus_client_golang/observability"
 	"github.com/koten-ai/zeus_client_golang/ports"
@@ -137,7 +138,8 @@ func (c *Client) Units() *api.UnitsAPI {
 
 // Jobs is the Mode 3 jobs facade (ZCG-39). Fail-closed when Options.Jobs is
 // nil (130001). Inject adapters/jobsfake (L4 seed) or adapters/jobsma
-// (Pattern A — koten_multi_agent_golang) via Options.Jobs.
+// (Pattern A — koten_multi_agent_golang) via Options.Jobs, or BindJobs after
+// New so Pattern A can do jobsma.New(api.UnitHost{Units: client.Units()}).
 // Everyday Q&A stays Mode 1 — jobs are never auto-promoted from chat.
 func (c *Client) Jobs() *api.JobsAPI {
 	if c == nil || c.rt == nil {
@@ -149,6 +151,23 @@ func (c *Client) Jobs() *api.JobsAPI {
 		Journal: c.Journal(),
 		Clock:   svc.Clock,
 	})
+}
+
+// BindJobs sets the jobs port after New. Pattern A demos construct
+// jobsma.New(api.UnitHost{Units: c.Units()}) then BindJobs so Jobs().Run
+// is available. Nil-safe. Replaces any previous Jobs port; Close closes it.
+// Closed / nil Client → 130001.
+func (c *Client) BindJobs(j ports.Jobs) error {
+	if c == nil || c.rt == nil {
+		return domain.NewJob(domain.CodeJobsUnavailable, "zeusclient")
+	}
+	c.rt.mu.Lock()
+	defer c.rt.mu.Unlock()
+	if c.rt.closed {
+		return domain.NewJob(domain.CodeJobsUnavailable, "zeusclient")
+	}
+	c.rt.jobs = j
+	return nil
 }
 
 // Agent is the Mode 1 agent-plane facade (ZCG-24 run_turn).

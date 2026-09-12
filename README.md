@@ -46,7 +46,7 @@ func main() {
 | **claim_level** | **candidate** (not `supported`) |
 | **client_floor** | `client-floor-5` |
 | **modes** | `agent`, `direct` |
-| **multi_agent** | **docs** (Pattern A seam linked; demo is ZCG-33 — not `supported`) |
+| **multi_agent** | **demo** (Pattern A `examples/patterna`; recorded `Jobs().Run` — not `supported`) |
 | **plugins** | no |
 | **suite** | `conformance-0.2-dev` (offline) |
 | **BASE packs tested** | mock path pinned (`base-5-mock`); no production COMPAT triple |
@@ -91,9 +91,10 @@ Auth → catalog (Bag A) → contract + session → injects (Bag B)
 
 Python Mode 3 is **Pattern B** (HTTP/SSE to a Go sidecar). This module is
 **Pattern A**: same process, link `koten_multi_agent_golang` via
-`adapters/jobsma` (inject on `Options.Jobs`). Do not reimplement
+`adapters/jobsma`. Wire with `jobsma.New(api.UnitHost{Units: c.Units()})`
+then `c.BindJobs` (or inject on `Options.Jobs`). Do not reimplement
 RunJob / replan / store / chaos. Everyday Q&A stays Mode 1. Claim is
-**docs**, not `demo` / `supported`.
+**demo** (`examples/patterna`), not `supported`.
 
 | Python | Go |
 | --- | --- |
@@ -106,6 +107,16 @@ RunJob / replan / store / chaos. Everyday Q&A stays Mode 1. Claim is
 
 One agent turn stays sequential (append-only messages). Parallelism is across
 units, not inside a single bag.
+
+Runnable demo (sibling `koten_multi_agent_golang` required):
+
+```bash
+go run -tags patterna ./examples/patterna
+go run -tags patterna ./examples/patterna -partial
+```
+
+See [`examples/patterna/README.md`](examples/patterna/README.md). Recorded transcripts
+are the proof path (`live_smoke=false`).
 
 ## Package layout
 
@@ -121,7 +132,8 @@ github.com/koten-ai/zeus_client_golang
   ports/           # SecretStore (ZCG-12); Zeus, LLM, catalog, clock, ids, HTTP, jobs (ZCG-11)
   adapters/        # secretsenv (ZCG-12); zeushttp headers+auth+verbs (ZCG-8, ZCG-17, ZCG-13); session HTTP (ZCG-19, ZCG-16); catalogfs (ZCG-15); llmopenai (ZCG-14)
   application/     # data verbs + typeahead (ZCG-13); Bag B inject (ZCG-20); session lifecycle (ZCG-19); projectors (ZCG-16); agent turn (ZCG-24); SecurityHooks (ZCG-25); detective + debug_export (ZCG-27)
-  api/             # agent, data, catalog, debug, session
+  api/             # agent, data, catalog, debug, session, jobs, units
+  examples/        # Pattern A demo (ZCG-33; //go:build patterna)
   observability/   # slog family events + REDACT
   security/        # DefaultRedactor + RedactAttrs (ZCG-5); jailbreak (ZCG-25)
   internal/httpx/  # dedicated *http.Client, req_id capture, 30s timeout (ZCG-8)

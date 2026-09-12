@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Pattern A in-process adapter links `koten_multi_agent_golang` v0.6.1 (ZCG-29). `Engine.RunJob` owns errgroup + MaxWorkers + wall + epoch fence; WorkUnits call `Units.AgentTurn` / `ZeusDirect`. Fake remains sequential L4 seed. `multi_agent` is **docs** (not demo — that is ZCG-33). Claim stays **candidate**. Min Go **1.25**.
+- Pattern A demo: `examples/patterna` one job, Zeus Direct + AgentTurn, isolated scopes (ZCG-33). Product host is `jobsma.New(api.UnitHost{Units: c.Units()})` via `Client.BindJobs`. Recorded `Jobs().Run` transcripts checked in (`recorded_ok.txt`, `recorded_partial.txt`). Partial path: public `pipeline` on one Direct unit (`060010`) + one ok → `status=partial`. `multi_agent` is **demo** (not `supported`). Claim stays **candidate**. Version stays `0.1.0`.
+- Pattern A in-process adapter links `koten_multi_agent_golang` v0.6.1 (ZCG-29). `Engine.RunJob` owns errgroup + MaxWorkers + wall + epoch fence; WorkUnits call `Units.AgentTurn` / `ZeusDirect`. Fake remains sequential L4 seed. `multi_agent` was **docs** until ZCG-33. Claim stays **candidate**. Min Go **1.25**.
 - FakeJobRuntime + Jobs API surface (ZCG-39). Sequential L4 seed; missing host → `130001`. Fake is not the engine. `multi_agent` stays **no**. Claim stays **candidate**.
 - Units.AgentTurn + Units.ZeusDirect isolated Client law (ZCG-31). Durable sessions off; `ctx` cancel; Direct skips LLM. `multi_agent` stays **no**. Claim stays **candidate**.
 - Jobs domain types + `ValidateUnitMap` isolation (ZCG-28). Types only; no job engine. `multi_agent` stays **no**. Claim stays **candidate**.

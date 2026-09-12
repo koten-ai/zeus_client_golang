@@ -11,5 +11,5 @@
 // Units.AgentTurn / ZeusDirect (isolated Client law).
 //
 // FakeJobRuntime (adapters/jobsfake) stays the sequential L4 seed.
-// MATRIX demo is ZCG-33; this package is the docs-level seam.
+// MATRIX demo is examples/patterna (ZCG-33); this package is the host seam.
 package jobsma
