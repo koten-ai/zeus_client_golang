@@ -61,6 +61,7 @@ Do not claim `supported` or “production ready”.
 Family law and ship bar:
 
 - [HOW_TO_MAKE_A_CLIENT.md](https://github.com/koten-ai/zeus_client_design/blob/main/HOW_TO_MAKE_A_CLIENT.md)
+- [HOW_TO_MAKE_A_CLIENT_LESSON_LEARNED.md](https://github.com/koten-ai/zeus_client_design/blob/main/HOW_TO_MAKE_A_CLIENT_LESSON_LEARNED.md)
 - [CHECKLIST.md](https://github.com/koten-ai/zeus_client_design/blob/main/CHECKLIST.md)
 - [MATRIX.md](https://github.com/koten-ai/zeus_client_design/blob/main/MATRIX.md)
 - [COMPAT.md](https://github.com/koten-ai/zeus_chat_request/blob/main/COMPAT.md) (engine pack triples — not invented here)
