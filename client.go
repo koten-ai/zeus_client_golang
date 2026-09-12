@@ -113,6 +113,28 @@ func (c *Client) Catalog() *api.CatalogAPI {
 	})
 }
 
+// Units is the Mode 3 WorkUnit facade (ZCG-31). Isolated AgentTurn / ZeusDirect.
+// Everyday Q&A stays Mode 1 — this is never auto-promoted from chat.
+func (c *Client) Units() *api.UnitsAPI {
+	if c == nil || c.rt == nil {
+		return nil
+	}
+	svc := c.Services()
+	cfg := c.Config()
+	return api.NewUnitsAPIWith(c, api.UnitsOptions{
+		LLM:     svc.LLM,
+		Zeus:    svc.Zeus,
+		Journal: c.Journal(),
+		IDs:     svc.IDs,
+		Config:  cfg,
+		Version: Version,
+		Clock:   svc.Clock,
+		Catalog: svc.Catalog,
+		Log:     logFunc(svc.Logger),
+		Metrics: svc.Metrics,
+	})
+}
+
 // Agent is the Mode 1 agent-plane facade (ZCG-24 run_turn).
 func (c *Client) Agent() *api.AgentAPI {
 	if c == nil || c.rt == nil {

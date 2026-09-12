@@ -316,7 +316,8 @@ func TestZeusAgentHandles(t *testing.T) {
 	cat := c.Catalog()
 	sess := c.Session()
 	dbg := c.Debug()
-	if z == nil || a == nil || cat == nil || sess == nil || dbg == nil {
+	units := c.Units()
+	if z == nil || a == nil || cat == nil || sess == nil || dbg == nil || units == nil {
 		t.Fatal("handles")
 	}
 	if z.Host() != c {
@@ -331,8 +332,11 @@ func TestZeusAgentHandles(t *testing.T) {
 	if dbg.Host() != c {
 		t.Fatal("Debug host")
 	}
+	if units.Host() != c {
+		t.Fatal("Units host")
+	}
 	var n *Client
-	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil || n.Session() != nil || n.Debug() != nil {
+	if n.Zeus() != nil || n.Agent() != nil || n.Catalog() != nil || n.Session() != nil || n.Debug() != nil || n.Units() != nil {
 		t.Fatal("nil Client handles")
 	}
 	if n.Config().Profile != "" {

@@ -13,4 +13,6 @@
 // ZCG-26 lands provider token rollup (application/tokens.go).
 // ZCG-27 lands Detective projector (application/detective) + debug_export
 // (redacted journal / span tree) attached on TurnResult.Debug.
+// ZCG-31 lands isolated Units AgentTurn / ZeusDirect (ctx cancel; durable
+// sessions off; no job engine).
 package application
