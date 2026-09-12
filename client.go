@@ -141,6 +141,20 @@ func logFunc(lg *observability.FamilyLogger) func(level, msg string, attrs map[s
 	return lg.Func()
 }
 
+// Debug is the journal export / span facade (ZCG-27). Integrators read
+// TurnResult.Debug after Agent.RunTurn; ExportJournal(turn_id=debug.ExportRef)
+// is gather field 9.
+func (c *Client) Debug() *api.DebugAPI {
+	if c == nil || c.rt == nil {
+		return nil
+	}
+	svc := c.Services()
+	return api.NewDebugAPIWith(c, api.DebugOptions{
+		Journal:  c.Journal(),
+		Redactor: svc.Redactor,
+	})
+}
+
 // Session is the durable-session facade (create / continue / rehydrate / trace).
 // Trace joins Detective on the dispatch hop req_id (ZCG-16). Runtime has no
 // dedicated session port — the API lazy-opens adapters/zeushttp.SessionClient

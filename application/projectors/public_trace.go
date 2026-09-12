@@ -20,6 +20,7 @@ type PublicTrace struct {
 	Session             map[string]any
 	Inject              map[string]any
 	Stamp               map[string]any
+	Detective           map[string]any
 }
 
 // BuildPublicTrace is the widget-friendly projection — never put G2 dumps in answer.
@@ -81,6 +82,9 @@ func BuildPublicTrace(in PublicTrace) map[string]any {
 	if len(in.Stamp) > 0 {
 		out["user"] = in.Stamp["user"]
 		out["stamp"] = copyMap(in.Stamp)
+	}
+	if len(in.Detective) > 0 {
+		out["detective"] = copyMap(in.Detective)
 	}
 	return out
 }

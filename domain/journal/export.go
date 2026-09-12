@@ -116,6 +116,41 @@ func emptyExport() JournalExport {
 	}
 }
 
+// FilterByTurn keeps events (and referenced payload meta) for one turn_id.
+// Empty turnID returns exp unchanged (Python filter_export_by_turn).
+func FilterByTurn(exp JournalExport, turnID string) JournalExport {
+	if turnID == "" {
+		return exp
+	}
+	var events []EventDump
+	refs := map[string]struct{}{}
+	for _, ev := range exp.Events {
+		if ev.TurnID != turnID {
+			continue
+		}
+		events = append(events, ev)
+		for _, r := range ev.PayloadRefs {
+			refs[r] = struct{}{}
+		}
+	}
+	payloads := map[string]PayloadMeta{}
+	if len(refs) > 0 {
+		for k, v := range exp.Payloads {
+			if _, ok := refs[k]; ok {
+				payloads[k] = v
+			}
+		}
+	}
+	if events == nil {
+		events = []EventDump{}
+	}
+	return JournalExport{
+		JournalSchema: exp.JournalSchema,
+		Events:        events,
+		Payloads:      payloads,
+	}
+}
+
 // ToMap is Python JournalExport.to_dict (schema v1 keys).
 func (e JournalExport) ToMap() map[string]any {
 	events := make([]any, len(e.Events))

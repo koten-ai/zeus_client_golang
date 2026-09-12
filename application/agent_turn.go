@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/koten-ai/zeus_client_golang/adapters/zeushttp"
+	"github.com/koten-ai/zeus_client_golang/application/detective"
 	"github.com/koten-ai/zeus_client_golang/application/projectors"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
@@ -105,6 +106,70 @@ type DebugBundle struct {
 	Tokens              map[string]any
 	Stamp               map[string]any
 	TraceID             string
+	Detective           map[string]any
+	ExportRef           string
+	JournalSchema       int
+}
+
+// ToMap is the JSON-safe gather surface — never includes the chat answer.
+func (d DebugBundle) ToMap() map[string]any {
+	hops := make([]map[string]any, 0, len(d.Hops))
+	for _, h := range d.Hops {
+		hops = append(hops, copyAnyMap(h))
+	}
+	reqIDs := d.ReqIDs
+	if reqIDs == nil {
+		reqIDs = []string{}
+	}
+	out := map[string]any{
+		"turn_id":                d.TurnID,
+		"chat_id":                nilIfEmpty(d.ChatID),
+		"session_id":             nilIfEmpty(d.SessionID),
+		"notes":                  d.Notes,
+		"rounds":                 d.Rounds,
+		"ai_process_result":      d.AIProcessResult,
+		"ai_process_result_exit": nilIfEmpty(d.AIProcessResultExit),
+		"hops":                   hops,
+		"journal_event_count":    d.JournalEventCount,
+		"preferred_req_id":       nilIfEmpty(d.PreferredReqID),
+		"req_ids":                reqIDs,
+		"zeus_url":               nilIfEmpty(d.ZeusURL),
+		"client_version":         d.ClientVersion,
+		"target":                 copyAnyMap(d.Target),
+		"catalog":                copyAnyMap(d.Catalog),
+		"contract_status":        nilIfEmpty(d.ContractStatus),
+		"tokens":                 copyAnyMap(d.Tokens),
+		"export_ref":             nilIfEmpty(d.ExportRef),
+		"journal_schema": func() int {
+			if d.JournalSchema == 0 {
+				return journal.JournalSchemaVersion
+			}
+			return d.JournalSchema
+		}(),
+		"stamp":    copyAnyMap(d.Stamp),
+		"trace_id": nilIfEmpty(d.TraceID),
+	}
+	if d.Notes == nil {
+		out["notes"] = []string{}
+	}
+	if len(d.Tokens) == 0 {
+		out["tokens"] = nil
+	}
+	if d.Detective != nil {
+		out["detective"] = d.Detective
+	}
+	return out
+}
+
+func copyAnyMap(m map[string]any) map[string]any {
+	if m == nil {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }
 
 // TurnResult is agent.run output (Python TurnResult).
@@ -139,6 +204,7 @@ type RunAgentTurnOpts struct {
 	Log              func(level, msg string, attrs map[string]any)
 	ContextWindow    int
 	ContextSoftLimit float64
+	Env              map[string]string
 }
 
 // ToolRoundOutcome is one round of Zeus tool execution (Python ToolRoundOutcome).
@@ -263,6 +329,9 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 		in.target = req.Target
 		in.tools = req.Tools
 		in.chatRequest = req.ChatRequest
+		in.hubBaseURL = opts.DebugPolicy.HubBaseURL
+		in.detectiveOn = opts.DebugPolicy.DetectiveBriefing
+		in.env = opts.Env
 		return finishTurn(in)
 	}
 
@@ -679,6 +748,9 @@ type turnFinish struct {
 	target      config.DataTarget
 	tools       []map[string]any
 	chatRequest map[string]any
+	hubBaseURL  string
+	detectiveOn bool
+	env         map[string]string
 }
 
 func finishTurn(in turnFinish) TurnResult {
@@ -803,7 +875,43 @@ func finishTurn(in turnFinish) TurnResult {
 		Session:             sessionBlock,
 		Stamp:               stampMap,
 	})
+	aiFlag := in.settings.AIProcessResult
 	totalMS := int(time.Since(in.t0).Milliseconds())
+	det := detective.SafeBuild(detective.BriefingArgs{
+		Enabled:             &in.detectiveOn,
+		Env:                 in.env,
+		TurnID:              in.turnID,
+		ChatID:              chat,
+		Answer:              answer,
+		Status:              string(in.status),
+		Rounds:              in.rounds,
+		Hops:                in.hops,
+		Notes:               in.notes,
+		Messages:            in.messages,
+		Catalog:             in.chatRequest,
+		Tools:               in.tools,
+		LayerA:              layerMap,
+		TotalMS:             &totalMS,
+		HubBaseURL:          in.hubBaseURL,
+		SessionID:           sid,
+		Target:              targetMap,
+		ContractStatus:      cst,
+		AIProcessResult:     &aiFlag,
+		AIProcessResultExit: in.aiExit,
+		PublicTrace:         public,
+		ZeusURL:             in.zeusURL,
+		ClientVersion:       in.version,
+		ExportRef:           in.turnID,
+	})
+	if det != nil {
+		public = cloneAnyMap(public)
+		public["detective"] = det
+	}
+	if pref == "" && det != nil {
+		if ov, ok := det["overview"].(map[string]any); ok {
+			pref = asString(ov["preferred_req_id"])
+		}
+	}
 	hooks := in.hooksScore
 	if in.decision != nil {
 		hooks = in.decision.HooksJailbreakScore
@@ -819,6 +927,7 @@ func finishTurn(in turnFinish) TurnResult {
 			"ai_process_result_exit": in.aiExit,
 			"total_ms":               totalMS,
 			"answer_preview":         clipStr(answer, 240),
+			"detective":              det != nil,
 			"req_ids":                reqIDs,
 			"trace_id":               in.traceID,
 		})
@@ -914,6 +1023,9 @@ func finishTurn(in turnFinish) TurnResult {
 			Tokens:              tokens,
 			Stamp:               stampMap,
 			TraceID:             in.traceID,
+			Detective:           det,
+			ExportRef:           in.turnID,
+			JournalSchema:       journal.JournalSchemaVersion,
 		},
 		Err:       in.err,
 		Messages:  in.messages,

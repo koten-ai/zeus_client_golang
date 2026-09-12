@@ -11,4 +11,6 @@
 // RunAgentTurn (sequential bags A–D; G2 never in answer; ctx cancel 000006).
 // ZCG-25 lands SecurityHooks + jailbreak inspect on the default chain.
 // ZCG-26 lands provider token rollup (application/tokens.go).
+// ZCG-27 lands Detective projector (application/detective) + debug_export
+// (redacted journal / span tree) attached on TurnResult.Debug.
 package application

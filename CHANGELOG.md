@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Detective projector + nine E2E gather fields on `TurnResult.Debug` (ZCG-27). `Client.Debug().ExportJournal` is the journal handle. Claim stays **candidate**.
+
 ---
 
 ## 0.1.0 — 2026-09-12

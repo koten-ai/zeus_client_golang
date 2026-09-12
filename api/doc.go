@@ -7,4 +7,5 @@
 // fills ZeusAPI Call / Search / Find / Get / Project + SearchSuggest. ZCG-19
 // fills SessionAPI Create / Continue / Rehydrate. ZCG-16 fills SessionAPI.Trace.
 // ZCG-24 fills AgentAPI.RunTurn; ZCG-25 defaults the agent chain to SecurityHooks.
+// ZCG-27 fills DebugAPI (export_journal / spans).
 package api

@@ -19,6 +19,8 @@ import (
 	_ "github.com/koten-ai/zeus_client_golang/adapters/zeushttp"
 	_ "github.com/koten-ai/zeus_client_golang/api"
 	_ "github.com/koten-ai/zeus_client_golang/application"
+	_ "github.com/koten-ai/zeus_client_golang/application/detective"
+	_ "github.com/koten-ai/zeus_client_golang/application/projectors"
 	_ "github.com/koten-ai/zeus_client_golang/config"
 	_ "github.com/koten-ai/zeus_client_golang/conformance"
 	_ "github.com/koten-ai/zeus_client_golang/domain"
