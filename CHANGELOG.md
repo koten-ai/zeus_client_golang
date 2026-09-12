@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Jobs domain types + `ValidateUnitMap` isolation (ZCG-28). Types only; no job engine. `multi_agent` stays **no**. Claim stays **candidate**.
 - Detective projector + nine E2E gather fields on `TurnResult.Debug` (ZCG-27). `Client.Debug().ExportJournal` is the journal handle. Claim stays **candidate**.
 
 ---

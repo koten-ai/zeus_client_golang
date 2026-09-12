@@ -130,6 +130,9 @@ func walkNoNetHTTP(t *testing.T, root string) {
 				impPath == mod+"/internal/httpx" || strings.HasPrefix(impPath, mod+"/internal/httpx/") {
 				t.Errorf("%s imports %s (must not import adapters/httpx)", path, impPath)
 			}
+			if root == "domain" && (impPath == mod+"/config" || strings.HasPrefix(impPath, mod+"/config/")) {
+				t.Errorf("%s imports %s (domain must not import config)", path, impPath)
+			}
 		}
 		return nil
 	})

@@ -5,6 +5,7 @@ package ports
 import "context"
 
 // JobHandle is an accepted job (Python domain.jobs.JobHandle).
+// Full domain types + ValidateUnitMap live in domain (ZCG-28).
 type JobHandle struct {
 	JobID  string
 	Status string
@@ -35,6 +36,8 @@ type JobSnapshot struct {
 
 // Jobs is the job-runtime port (Python JobRuntimePort).
 // Pattern A (koten_multi_agent_golang) is later — interface only here.
+// Domain types + ValidateUnitMap live in domain (ZCG-28); do not grow this
+// port into an engine.
 // Watch returns a channel that the adapter closes when the watch ends.
 type Jobs interface {
 	Run(ctx context.Context, request map[string]any) (JobHandle, error)

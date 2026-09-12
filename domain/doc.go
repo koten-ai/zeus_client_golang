@@ -14,4 +14,6 @@
 // ZCG-14 lands LLM classify (050010–050018). Later-wins llm roles live in config.
 // ZCG-22 lands Layer A parse/peel + policy.decide (G2 never in answer).
 // Control-plane splice is application.
+// ZCG-28 lands job/unit types + ValidateUnitMap (isolation fail-closed;
+// no job engine; Mode 1 is never auto-promoted to a job).
 package domain
