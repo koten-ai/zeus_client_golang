@@ -306,7 +306,7 @@ type ClientIdentity struct {
 // RuntimeConfig is the immutable bind result (Python RuntimeConfig).
 type RuntimeConfig struct {
 	Profile              string
-	User                 string // product stamp; default zeus_client
+	User                 string // stamp user; default zeus_client; Hub admin via Options.StampUser
 	Zeus                 ZeusEndpointConfig
 	Target               DataTarget
 	LLM                  LlmProviderConfig

@@ -201,6 +201,7 @@ type RunAgentTurnOpts struct {
 	IDs              ports.IDFactory
 	ClientIP         string
 	Version          string
+	StampUser        string
 	Log              func(level, msg string, attrs map[string]any)
 	ContextWindow    int
 	ContextSoftLimit float64
@@ -269,6 +270,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 		scope = req.Target.Bucket + "/" + req.Target.Scope
 	}
 	stamp := domain.ProductStamp(domain.StampOptions{
+		User:      opts.StampUser,
 		IPAddress: domain.ResolveClientIP(opts.ClientIP, map[string]string{}, false),
 		Version:   opts.Version,
 		Scope:     scope,

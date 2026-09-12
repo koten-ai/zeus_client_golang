@@ -57,6 +57,36 @@ func TestProductStampNeverAdmin(t *testing.T) {
 	}
 }
 
+func TestResolveStampUser(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"", ProductUser},
+		{"  ", ProductUser},
+		{ProductUser, ProductUser},
+		{HubUser, HubUser},
+		{"helios", "helios"},
+		{"zeus", "zeus"},
+		{"not-a-user", ProductUser},
+		{" Admin ", ProductUser},
+	}
+	for _, tc := range cases {
+		if got := ResolveStampUser(tc.in); got != tc.want {
+			t.Fatalf("%q → %q want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestProductStampHubAdminViaOptions(t *testing.T) {
+	s := ProductStamp(StampOptions{User: HubUser, Version: "1"})
+	if s["user"] != HubUser {
+		t.Fatalf("%v", s["user"])
+	}
+	if err := AssertProductStamp(s); err == nil {
+		t.Fatal("Helios-style filter must reject Hub admin")
+	}
+}
+
 func TestProductStampOptionalFields(t *testing.T) {
 	fixed := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
 	s := ProductStamp(StampOptions{

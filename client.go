@@ -3,6 +3,8 @@
 package zeusclient
 
 import (
+	"strings"
+
 	"github.com/koten-ai/zeus_client_golang/api"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
@@ -14,7 +16,8 @@ import (
 
 // Options constructs a Client. Env nil uses the process environment; an empty
 // map isolates tests from process env (same as config.Load). Config, when
-// non-nil, is snapshotted and used as-is (Load is skipped).
+// non-nil, is snapshotted (Load is skipped). StampUser overlays config.user
+// (empty → zeus_client; Hub Debug Chat sets admin).
 //
 // Journal / Secrets / Clock / IDs / Redactor / HTTP default when nil.
 // Zeus, LLM, Catalog stay nil unless injected. Jobs stay nil unless injected
@@ -38,6 +41,12 @@ type Options struct {
 	Jobs     ports.Jobs
 	Logger   *observability.FamilyLogger
 	Metrics  observability.MetricsPort
+
+	// StampUser is the session/trace stamp user (UNIFICATION U5).
+	// Empty → zeus_client (product). Hub Debug Chat sets "admin".
+	// Same agent path; no second loop. Unknown values fail-closed to
+	// zeus_client (never invent).
+	StampUser string
 }
 
 // Client is the public handle (Python ZeusRuntime).
@@ -56,14 +65,29 @@ func New(opts Options) (*Client, error) {
 }
 
 func resolveConfig(opts Options) (config.RuntimeConfig, error) {
+	var cfg config.RuntimeConfig
 	if opts.Config != nil {
-		return opts.Config.Snapshot(), nil
+		cfg = opts.Config.Snapshot()
+	} else {
+		loaded, err := config.Load(opts.ConfigPath, opts.Profile, opts.Env)
+		if err != nil {
+			return config.RuntimeConfig{}, err
+		}
+		cfg = loaded.Snapshot()
 	}
-	cfg, err := config.Load(opts.ConfigPath, opts.Profile, opts.Env)
-	if err != nil {
-		return config.RuntimeConfig{}, err
+	applyStampUser(&cfg, opts.StampUser)
+	return cfg, nil
+}
+
+func applyStampUser(cfg *config.RuntimeConfig, optsUser string) {
+	if cfg == nil {
+		return
 	}
-	return cfg.Snapshot(), nil
+	if strings.TrimSpace(optsUser) != "" {
+		cfg.User = domain.ResolveStampUser(optsUser)
+		return
+	}
+	cfg.User = domain.ResolveStampUser(cfg.User)
 }
 
 // Close releases injected adapters (HttpPort.Close and any ports.Closer).

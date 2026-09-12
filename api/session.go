@@ -168,11 +168,12 @@ func (s *SessionAPI) client() (*zeushttp.SessionClient, error) {
 		return s.lazy, nil
 	}
 	p := zeushttp.NewSessionClient(zeushttp.SessionClientOptions{
-		Endpoint: s.opts.Config.Zeus,
-		Secrets:  s.opts.Secrets,
-		HTTP:     s.opts.HTTP,
-		Version:  s.opts.Version,
-		Identity: s.opts.Identity,
+		Endpoint:  s.opts.Config.Zeus,
+		Secrets:   s.opts.Secrets,
+		HTTP:      s.opts.HTTP,
+		Version:   s.opts.Version,
+		Identity:  s.opts.Identity,
+		StampUser: s.opts.Config.User,
 	})
 	s.lazy = p
 	return p, nil

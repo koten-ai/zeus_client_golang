@@ -207,13 +207,14 @@ func (z *ZeusAPI) port() (ports.ZeusPort, error) {
 		return z.lazy, nil
 	}
 	p := zeushttp.NewPort(zeushttp.PortOptions{
-		Endpoint: z.opts.Config.Zeus,
-		Secrets:  z.opts.Secrets,
-		HTTP:     z.opts.HTTP,
-		Journal:  z.opts.Journal,
-		Version:  z.opts.Version,
-		Redactor: z.opts.Redactor,
-		Log:      z.opts.Log,
+		Endpoint:  z.opts.Config.Zeus,
+		Secrets:   z.opts.Secrets,
+		HTTP:      z.opts.HTTP,
+		Journal:   z.opts.Journal,
+		Version:   z.opts.Version,
+		StampUser: z.opts.Config.User,
+		Redactor:  z.opts.Redactor,
+		Log:       z.opts.Log,
 	})
 	z.lazy = p
 	return p, nil

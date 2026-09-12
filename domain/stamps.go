@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	// ProductUser is the product SDK stamp (Python PRODUCT_USER). Hub admin is later.
-	ProductUser    = "zeus_client"
+	// ProductUser is the product SDK stamp (Python PRODUCT_USER).
+	ProductUser = "zeus_client"
+	// HubUser is the Hub Debug Chat stamp (UNIFICATION U5). Set via Options, not a second loop.
+	HubUser        = "admin"
 	ipEnvName      = "ZEUS_CLIENT_IP"
 	stampComponent = "domain.stamps"
 )
@@ -24,14 +26,29 @@ var ProductUserEnum = map[string]struct{}{
 	"admin":       {},
 }
 
-// StampOptions builds a product root stamp (Python product_stamp kwargs).
+// StampOptions builds a root stamp (Python product_stamp kwargs).
+// User empty → ProductUser. Hub Options.StampUser=admin uses the same builder.
 type StampOptions struct {
+	User      string
 	IPAddress string
 	Version   string
 	TS        string
 	Scope     string
 	SessionID string
 	Now       func() time.Time
+}
+
+// ResolveStampUser is the closed-enum stamp user. Empty or unknown → product
+// zeus_client (never invent). Hub admin is Options.StampUser, same builder.
+func ResolveStampUser(user string) string {
+	u := strings.TrimSpace(user)
+	if u == "" {
+		return ProductUser
+	}
+	if _, ok := ProductUserEnum[u]; ok {
+		return u
+	}
+	return ProductUser
 }
 
 // IsIPText reports whether value is a textual IPv4 or IPv6 address.
@@ -101,12 +118,13 @@ func ResolveClientIP(configIP string, env map[string]string, probeHost bool) str
 	return ""
 }
 
-// ProductStamp is root identity for session/report sinks. Product user is fixed.
+// ProductStamp is root identity for session/report sinks.
+// Default user is zeus_client. Hub Options.StampUser=admin shares this builder.
 // Version empty → caller should pass zeusclient.Version; tests may set it.
 func ProductStamp(opts StampOptions) map[string]any {
 	ver := strings.TrimSpace(opts.Version)
 	out := map[string]any{
-		"user":    ProductUser,
+		"user":    ResolveStampUser(opts.User),
 		"version": ver,
 	}
 	ip := strings.TrimSpace(opts.IPAddress)
@@ -131,8 +149,9 @@ func ProductStamp(opts StampOptions) map[string]any {
 	return out
 }
 
-// AssertProductStamp is a test/audit helper — product sinks must never claim
-// Hub admin traffic. Invalid IP is refused. Returns nil when the stamp is ok.
+// AssertProductStamp is the Helios-style product-purity filter — product
+// sinks must never claim Hub admin traffic. Invalid IP is refused.
+// Returns nil when the stamp is ok. Hub admin stamps fail this check on purpose.
 func AssertProductStamp(stamp map[string]any) error {
 	user := asString(stamp["user"])
 	if user != ProductUser {

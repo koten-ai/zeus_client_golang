@@ -34,15 +34,16 @@ type SessionHTTPResult struct {
 // Server mints session_id; this client never invents one. PostTrace joins
 // Detective on the dispatch hop req_id (ZCG-16).
 type SessionClient struct {
-	endpoint config.ZeusEndpointConfig
-	secrets  ports.SecretStore
-	http     ports.HttpPort
-	ownsHTTP bool
-	auth     *AuthResolver
-	ownsAuth bool
-	version  string
-	identity config.ClientIdentity
-	preMint  bool
+	endpoint  config.ZeusEndpointConfig
+	secrets   ports.SecretStore
+	http      ports.HttpPort
+	ownsHTTP  bool
+	auth      *AuthResolver
+	ownsAuth  bool
+	version   string
+	identity  config.ClientIdentity
+	stampUser string
+	preMint   bool
 
 	mu        sync.Mutex
 	closed    bool
@@ -54,14 +55,15 @@ var _ ports.Closer = (*SessionClient)(nil)
 
 // SessionClientOptions constructs SessionClient. HTTP nil → dedicated httpx client.
 type SessionClientOptions struct {
-	Endpoint config.ZeusEndpointConfig
-	Secrets  ports.SecretStore
-	HTTP     ports.HttpPort
-	Auth     *AuthResolver
-	Version  string
-	Identity config.ClientIdentity
-	PreMint  bool
-	Log      func(level, msg string, attrs map[string]any)
+	Endpoint  config.ZeusEndpointConfig
+	Secrets   ports.SecretStore
+	HTTP      ports.HttpPort
+	Auth      *AuthResolver
+	Version   string
+	Identity  config.ClientIdentity
+	StampUser string
+	PreMint   bool
+	Log       func(level, msg string, attrs map[string]any)
 }
 
 // NewSessionClient returns a /v2/session* adapter.
@@ -93,15 +95,16 @@ func NewSessionClient(opts SessionClientOptions) *SessionClient {
 		ownsAuth = true
 	}
 	return &SessionClient{
-		endpoint: ep,
-		secrets:  sec,
-		http:     httpPort,
-		ownsHTTP: ownsHTTP,
-		auth:     auth,
-		ownsAuth: ownsAuth,
-		version:  opts.Version,
-		identity: opts.Identity,
-		preMint:  opts.PreMint,
+		endpoint:  ep,
+		secrets:   sec,
+		http:      httpPort,
+		ownsHTTP:  ownsHTTP,
+		auth:      auth,
+		ownsAuth:  ownsAuth,
+		version:   opts.Version,
+		identity:  opts.Identity,
+		stampUser: opts.StampUser,
+		preMint:   opts.PreMint,
 	}
 }
 
@@ -431,7 +434,7 @@ func (c *SessionClient) headers(ctx context.Context, mode string, extra map[stri
 	}
 	h := MergeHeaders(
 		auth.Headers,
-		ProductStampHeaders(c.version),
+		StampHeaders(c.stampUser, c.version),
 		map[string]string{"Content-Type": "application/json", "Accept": "application/json"},
 		extra,
 	)
@@ -445,6 +448,7 @@ func (c *SessionClient) headers(ctx context.Context, mode string, extra map[stri
 func (c *SessionClient) sinkStamp(sessionID string) map[string]any {
 	ip := domain.ResolveClientIP(c.identity.IPAddress, map[string]string{}, false)
 	return domain.ProductStamp(domain.StampOptions{
+		User:      c.stampUser,
 		IPAddress: ip,
 		Version:   c.version,
 		SessionID: sessionID,

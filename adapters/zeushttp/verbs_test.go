@@ -357,6 +357,31 @@ func TestCallVerbStampsDirectHeadersAndProduct(t *testing.T) {
 	}
 }
 
+func TestCallVerbStampUserHubAdmin(t *testing.T) {
+	h := &recHTTP{resp: ports.HTTPResponse{
+		Status:  200,
+		Headers: map[string]string{domain.ReqIDHeader: "r-admin"},
+		Body:    []byte(`{"ok":true}`),
+	}}
+	p := NewPort(PortOptions{
+		Endpoint:  config.ZeusEndpointConfig{URL: "http://zeus.test:8080", AuthMode: config.AuthNone, TimeoutS: 5, TLSVerify: true},
+		Secrets:   secretsenv.NewWithEnviron(map[string]string{}),
+		HTTP:      h,
+		Journal:   journal.NewInMemoryJournal(nil),
+		TurnID:    "turn_t",
+		Version:   "0.1.0-dev",
+		StampUser: domain.HubUser,
+	})
+	t.Cleanup(func() { _ = p.Close(context.Background()) })
+	_, err := p.CallVerb(context.Background(), ports.VerbRequest{Verb: "find", Target: yelpTarget()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.last.Headers["X-Zeus-Client"] != domain.HubUser {
+		t.Fatalf("%v", h.last.Headers)
+	}
+}
+
 func TestZeusReqLogsBytesInOutAndReqID(t *testing.T) {
 	body := []byte(`{"ok":true,"n":1}`)
 	h := &recHTTP{resp: ports.HTTPResponse{

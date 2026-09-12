@@ -88,12 +88,17 @@ func CorrelationHeaders(c Correlation) map[string]string {
 	return h
 }
 
-// ProductStampHeaders stamps product identity (never secrets).
-func ProductStampHeaders(version string) map[string]string {
+// StampHeaders is X-Zeus-Client + version. user empty → product zeus_client.
+func StampHeaders(user, version string) map[string]string {
 	return map[string]string{
-		"X-Zeus-Client":         ProductUser,
+		"X-Zeus-Client":         domain.ResolveStampUser(user),
 		"X-Zeus-Client-Version": version,
 	}
+}
+
+// ProductStampHeaders stamps product identity (never secrets).
+func ProductStampHeaders(version string) map[string]string {
+	return StampHeaders(ProductUser, version)
 }
 
 // ReqIDFromHeaders is the full X-Zeus-Req-Id (Python req_id_from_headers).

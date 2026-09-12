@@ -11,6 +11,7 @@ import (
 	"github.com/koten-ai/zeus_client_golang/adapters/jobsfake"
 	"github.com/koten-ai/zeus_client_golang/adapters/jobshttp"
 	"github.com/koten-ai/zeus_client_golang/api"
+	"github.com/koten-ai/zeus_client_golang/application"
 	"github.com/koten-ai/zeus_client_golang/config"
 	"github.com/koten-ai/zeus_client_golang/domain"
 	"github.com/koten-ai/zeus_client_golang/domain/journal"
@@ -89,6 +90,72 @@ var (
 	_ ports.Closer   = (*fakeZeus)(nil)
 	_ ports.Closer   = (*fakeHTTP)(nil)
 )
+
+type stampLLM struct{}
+
+func (stampLLM) Complete(context.Context, ports.LlmRequest) (ports.LlmResponse, error) {
+	return ports.LlmResponse{Content: "same answer"}, nil
+}
+
+func TestStampSwitchSameAgentPath(t *testing.T) {
+	sessionsOff := false
+	tests := []struct {
+		name        string
+		stampUser   string
+		configUser  string
+		want        string
+		productPure bool
+	}{
+		{name: "default product", want: domain.ProductUser, productPure: true},
+		{name: "explicit product", stampUser: domain.ProductUser, want: domain.ProductUser, productPure: true},
+		{name: "hub admin", stampUser: domain.HubUser, want: domain.HubUser, productPure: false},
+		{name: "unknown fail-closed", stampUser: "not-a-user", want: domain.ProductUser, productPure: true},
+		{name: "config equivalent admin", configUser: domain.HubUser, want: domain.HubUser, productPure: false},
+		{name: "options wins", stampUser: domain.HubUser, configUser: "helios", want: domain.HubUser, productPure: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.Default()
+			if tc.configUser != "" {
+				cfg.User = tc.configUser
+			}
+			c, err := New(Options{
+				Config:    &cfg,
+				Env:       map[string]string{},
+				LLM:       stampLLM{},
+				StampUser: tc.stampUser,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer c.Close()
+			if c.Config().User != tc.want {
+				t.Fatalf("config.user %q want %q", c.Config().User, tc.want)
+			}
+			got, err := c.Agent().RunTurn(context.Background(), "hi", api.RunTurnParams{
+				EnableSessions: &sessionsOff,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Answer != "same answer" || got.Status != application.TurnOK {
+				t.Fatalf("same path %+v", got)
+			}
+			user, _ := got.Debug.Stamp["user"].(string)
+			if user != tc.want {
+				t.Fatalf("stamp user %q want %q stamp=%v", user, tc.want, got.Debug.Stamp)
+			}
+			ferr := domain.AssertProductStamp(got.Debug.Stamp)
+			if tc.productPure {
+				if ferr != nil {
+					t.Fatalf("Helios-style filter: %v", ferr)
+				}
+			} else if ferr == nil {
+				t.Fatal("Helios-style filter must reject Hub admin")
+			}
+		})
+	}
+}
 
 func TestProductStampVersionTracksPackage(t *testing.T) {
 	s := domain.ProductStamp(domain.StampOptions{Version: Version})

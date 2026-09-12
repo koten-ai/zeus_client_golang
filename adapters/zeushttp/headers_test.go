@@ -2,7 +2,11 @@
 
 package zeushttp
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/koten-ai/zeus_client_golang/domain"
+)
 
 func TestCorrelationHeadersFullAgent(t *testing.T) {
 	h := CorrelationHeaders(Correlation{
@@ -113,6 +117,17 @@ func TestProductStampHeaders(t *testing.T) {
 	}
 	if h["X-Zeus-Client-Version"] != "0.1.0-dev" {
 		t.Fatalf("%v", h)
+	}
+}
+
+func TestStampHeadersHubAdmin(t *testing.T) {
+	h := StampHeaders(domain.HubUser, "0.1.0-dev")
+	if h["X-Zeus-Client"] != domain.HubUser {
+		t.Fatalf("%v", h)
+	}
+	p := StampHeaders("", "0.1.0-dev")
+	if p["X-Zeus-Client"] != ProductUser {
+		t.Fatalf("default %v", p)
 	}
 }
 

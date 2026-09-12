@@ -99,14 +99,15 @@ func VerbURL(baseURL string, target config.DataTarget, verb string) string {
 // Port is the ZeusPort over a dedicated HttpPort (Python HttpxZeusPort).
 // Composes AuthResolver + HttpPort. Direct public surface keeps AllowPipeline false.
 type Port struct {
-	endpoint config.ZeusEndpointConfig
-	secrets  ports.SecretStore
-	journal  journal.ExecutionJournal
-	turnID   string
-	version  string
-	redactor security.Redactor
-	clock    ports.Clock
-	logf     func(level, msg string, attrs map[string]any)
+	endpoint  config.ZeusEndpointConfig
+	secrets   ports.SecretStore
+	journal   journal.ExecutionJournal
+	turnID    string
+	version   string
+	stampUser string
+	redactor  security.Redactor
+	clock     ports.Clock
+	logf      func(level, msg string, attrs map[string]any)
 
 	auth     *AuthResolver
 	ownsAuth bool
@@ -126,16 +127,17 @@ var (
 // PortOptions constructs Port. HTTP nil → dedicated internal/httpx client
 // (owned; Close releases it). Secrets nil → process env.
 type PortOptions struct {
-	Endpoint config.ZeusEndpointConfig
-	Secrets  ports.SecretStore
-	HTTP     ports.HttpPort
-	Auth     *AuthResolver
-	Journal  journal.ExecutionJournal
-	TurnID   string
-	Version  string
-	Redactor security.Redactor
-	Clock    ports.Clock
-	Log      func(level, msg string, attrs map[string]any)
+	Endpoint  config.ZeusEndpointConfig
+	Secrets   ports.SecretStore
+	HTTP      ports.HttpPort
+	Auth      *AuthResolver
+	Journal   journal.ExecutionJournal
+	TurnID    string
+	Version   string
+	StampUser string
+	Redactor  security.Redactor
+	Clock     ports.Clock
+	Log       func(level, msg string, attrs map[string]any)
 }
 
 // NewPort returns a ZeusPort that dispatches V2 verbs.
@@ -177,18 +179,19 @@ func NewPort(opts PortOptions) *Port {
 	}
 
 	return &Port{
-		endpoint: ep,
-		secrets:  sec,
-		journal:  opts.Journal,
-		turnID:   opts.TurnID,
-		version:  opts.Version,
-		redactor: red,
-		clock:    clk,
-		logf:     opts.Log,
-		auth:     auth,
-		ownsAuth: ownsAuth,
-		http:     httpPort,
-		ownsHTTP: ownsHTTP,
+		endpoint:  ep,
+		secrets:   sec,
+		journal:   opts.Journal,
+		turnID:    opts.TurnID,
+		version:   opts.Version,
+		stampUser: opts.StampUser,
+		redactor:  red,
+		clock:     clk,
+		logf:      opts.Log,
+		auth:      auth,
+		ownsAuth:  ownsAuth,
+		http:      httpPort,
+		ownsHTTP:  ownsHTTP,
 	}
 }
 
@@ -402,7 +405,7 @@ func (p *Port) Logs() string {
 func (p *Port) verbHeaders(auth ports.AuthContext, req ports.VerbRequest, verb string) map[string]string {
 	out := MergeHeaders(
 		auth.Headers,
-		ProductStampHeaders(p.version),
+		StampHeaders(p.stampUser, p.version),
 		map[string]string{"Content-Type": "application/json", "Accept": "application/json"},
 		req.Headers,
 	)

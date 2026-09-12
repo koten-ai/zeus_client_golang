@@ -30,6 +30,43 @@ func sessionClient(t *testing.T, httpPort ports.HttpPort, base string) *SessionC
 	return c
 }
 
+func TestSessionStampUserHubAdmin(t *testing.T) {
+	h := &recHTTP{resp: ports.HTTPResponse{
+		Status:  201,
+		Headers: map[string]string{domain.ReqIDHeader: "echo-admin"},
+		Body:    []byte(`{"session_id":"zsess_1"}`),
+	}}
+	c := NewSessionClient(SessionClientOptions{
+		Endpoint:  config.ZeusEndpointConfig{URL: "http://zeus.test:8080", AuthMode: config.AuthNone, TimeoutS: 5, TLSVerify: true},
+		Secrets:   secretsenv.NewWithEnviron(map[string]string{}),
+		HTTP:      h,
+		Version:   "0.1.0-dev",
+		StampUser: domain.HubUser,
+	})
+	t.Cleanup(func() { _ = c.Close(context.Background()) })
+	_, err := c.Create(context.Background(), SessionCreateRequest{
+		ContractID:   "cid",
+		ContractHash: "md5:aaa",
+		ChatRequest:  map[string]any{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.last.Headers["X-Zeus-Client"] != domain.HubUser {
+		t.Fatalf("header %v", h.last.Headers)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(h.last.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["user"] != domain.HubUser {
+		t.Fatalf("body stamp %v", body)
+	}
+	if err := domain.AssertProductStamp(body); err == nil {
+		t.Fatal("Helios-style filter must reject Hub admin")
+	}
+}
+
 func TestHTTPCreateSessionWireShape(t *testing.T) {
 	doc := loadWire(t, filepath.Join("testdata", "wire", "v2_session_create.response.json"))
 	var sawBody map[string]any

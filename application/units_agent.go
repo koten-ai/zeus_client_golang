@@ -177,6 +177,7 @@ func RunAgentUnit(ctx context.Context, unit domain.UnitConfig, opts UnitRunOpts)
 		ClientFloor:      opts.Config.ClientFloor,
 		IDs:              opts.IDs,
 		Version:          opts.Version,
+		StampUser:        opts.Config.User,
 		Log:              opts.Log,
 		ContextWindow:    opts.Config.LLM.ContextWindowTokens,
 		ContextSoftLimit: opts.Config.LLM.ContextSoftLimit,

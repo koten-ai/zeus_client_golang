@@ -178,6 +178,7 @@ func (a *AgentAPI) RunTurn(ctx context.Context, message string, params RunTurnPa
 		IDs:              a.opts.IDs,
 		ClientIP:         a.opts.Config.Client.IPAddress,
 		Version:          a.opts.Version,
+		StampUser:        a.opts.Config.User,
 		Log:              a.opts.Log,
 		ContextWindow:    a.opts.Config.LLM.ContextWindowTokens,
 		ContextSoftLimit: a.opts.Config.LLM.ContextSoftLimit,

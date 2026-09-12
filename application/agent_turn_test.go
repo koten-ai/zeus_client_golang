@@ -402,8 +402,51 @@ func TestTurnIDIsUUIDv4AndErrorCarriesIDs(t *testing.T) {
 	if asString(result.Debug.Stamp["user"]) != "zeus_client" {
 		t.Fatalf("stamp %v", result.Debug.Stamp)
 	}
+	if err := domain.AssertProductStamp(result.Debug.Stamp); err != nil {
+		t.Fatalf("Helios-style filter: %v", err)
+	}
 	if result.Err == nil || asString(result.Err.Details["zeus.url"]) != "http://zeus.test:8080" {
 		t.Fatalf("err %+v", result.Err)
+	}
+}
+
+func TestStampSwitchSameTurnPath(t *testing.T) {
+	tests := []struct {
+		name        string
+		stampUser   string
+		want        string
+		productPure bool
+	}{
+		{name: "default product", want: domain.ProductUser, productPure: true},
+		{name: "explicit product", stampUser: domain.ProductUser, want: domain.ProductUser, productPure: true},
+		{name: "hub admin", stampUser: domain.HubUser, want: domain.HubUser, productPure: false},
+		{name: "unknown fail-closed", stampUser: "not-a-user", want: domain.ProductUser, productPure: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			llm := &scriptedLLM{script: []any{
+				ports.LlmResponse{Content: "same answer"},
+			}}
+			result := RunAgentTurn(context.Background(), TurnRequest{Message: "hi"}, RunAgentTurnOpts{
+				LLM:       llm,
+				Version:   "0.1.0",
+				StampUser: tc.stampUser,
+			})
+			if result.Answer != "same answer" || result.Status != TurnOK {
+				t.Fatalf("%+v", result)
+			}
+			if asString(result.Debug.Stamp["user"]) != tc.want {
+				t.Fatalf("stamp %v", result.Debug.Stamp)
+			}
+			err := domain.AssertProductStamp(result.Debug.Stamp)
+			if tc.productPure {
+				if err != nil {
+					t.Fatalf("Helios-style filter: %v", err)
+				}
+			} else if err == nil {
+				t.Fatal("Helios-style filter must reject Hub admin")
+			}
+		})
 	}
 }
 

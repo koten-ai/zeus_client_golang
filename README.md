@@ -77,7 +77,7 @@ Do not self-award MATRIX / claim `supported` from CI green alone.
 | G2 never in `answer` | Layer A peel |
 | No public `pipeline` | Direct verbs + agent loop only |
 | Catalog fail-closed | Missing pack / stamp is an error, not a guess |
-| Product stamp | `user=zeus_client` (Hub Debug Chat uses `user=admin` via Options later) |
+| Product stamp | `user=zeus_client` (Hub Debug Chat uses `user=admin` via `Options.StampUser`; same agent path) |
 
 Canonical turn (Mode 1 Agent):
 
