@@ -5,6 +5,7 @@ package zeushttp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/koten-ai/zeus_client_golang/adapters/secretsenv"
 	"github.com/koten-ai/zeus_client_golang/config"
@@ -43,6 +45,53 @@ func (r *recHTTP) count() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.n
+}
+
+type seqHTTP struct {
+	mu    sync.Mutex
+	n     int
+	steps []struct {
+		resp ports.HTTPResponse
+		err  error
+	}
+}
+
+func (s *seqHTTP) Request(_ context.Context, _ ports.HTTPRequest) (ports.HTTPResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.n
+	s.n++
+	if len(s.steps) == 0 {
+		return ports.HTTPResponse{}, errors.New("seqHTTP empty")
+	}
+	if i >= len(s.steps) {
+		i = len(s.steps) - 1
+	}
+	return s.steps[i].resp, s.steps[i].err
+}
+
+func (s *seqHTTP) Close(context.Context) error { return nil }
+
+func (s *seqHTTP) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.n
+}
+
+func retryPort(t *testing.T, httpPort ports.HttpPort, base string) *Port {
+	t.Helper()
+	p := NewPort(PortOptions{
+		Endpoint: config.ZeusEndpointConfig{URL: base, AuthMode: config.AuthNone, TimeoutS: 5, TLSVerify: true},
+		Secrets:  secretsenv.NewWithEnviron(map[string]string{}),
+		HTTP:     httpPort,
+		Journal:  journal.NewInMemoryJournal(nil),
+		TurnID:   "turn_t",
+		Version:  "0.1.0-dev",
+		Retry:    config.RetryPolicy{MaxAttempts: 3, BaseDelayMS: 0, MaxDelayMS: 1, Jitter: false},
+		Sleep:    func(ctx context.Context, _ time.Duration) error { return ctx.Err() },
+	})
+	t.Cleanup(func() { _ = p.Close(context.Background()) })
+	return p
 }
 
 func yelpTarget() config.DataTarget {
@@ -416,5 +465,123 @@ func TestZeusReqLogsBytesInOutAndReqID(t *testing.T) {
 	}
 	if strings.Contains(logs, "tokens.input=0") {
 		t.Fatal("tokens.input=0 on Direct HTTP")
+	}
+}
+
+func TestCallVerbFindRetries503ThenOK(t *testing.T) {
+	h := &seqHTTP{steps: []struct {
+		resp ports.HTTPResponse
+		err  error
+	}{
+		{resp: ports.HTTPResponse{Status: 503, Body: []byte(`{"error":"busy"}`)}},
+		{resp: ports.HTTPResponse{Status: 200, Headers: map[string]string{domain.ReqIDHeader: "r-ok"}, Body: []byte(`{"ok":true}`)}},
+	}}
+	p := retryPort(t, h, "http://z")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{Verb: "find", Target: yelpTarget()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.count() != 2 {
+		t.Fatalf("calls=%d want 2", h.count())
+	}
+	if !hop.OK || hop.ReqID != "r-ok" {
+		t.Fatalf("%+v", hop)
+	}
+}
+
+func TestCallVerbFindNoRetry409(t *testing.T) {
+	h := &seqHTTP{steps: []struct {
+		resp ports.HTTPResponse
+		err  error
+	}{
+		{resp: ports.HTTPResponse{Status: 409, Headers: map[string]string{domain.ReqIDHeader: "r-409"}, Body: []byte(`{"error":"contract"}`)}},
+	}}
+	p := retryPort(t, h, "http://z")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{Verb: "find", Target: yelpTarget()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.count() != 1 {
+		t.Fatalf("calls=%d", h.count())
+	}
+	if hop.OK || hop.StatusCode != 409 {
+		t.Fatalf("%+v", hop)
+	}
+}
+
+func TestCallVerbFindNoRetry429(t *testing.T) {
+	h := &seqHTTP{steps: []struct {
+		resp ports.HTTPResponse
+		err  error
+	}{
+		{resp: ports.HTTPResponse{Status: 429, Body: []byte(`{"error":"slow"}`)}},
+	}}
+	p := retryPort(t, h, "http://z")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{Verb: "find", Target: yelpTarget()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.count() != 1 || hop.StatusCode != 429 {
+		t.Fatalf("calls=%d hop=%+v", h.count(), hop)
+	}
+}
+
+func TestCallVerbFindRetriesTransportThenOK(t *testing.T) {
+	h := &seqHTTP{steps: []struct {
+		resp ports.HTTPResponse
+		err  error
+	}{
+		{err: errors.New("connection reset")},
+		{resp: ports.HTTPResponse{Status: 200, Headers: map[string]string{domain.ReqIDHeader: "r-t"}, Body: []byte(`{"ok":true}`)}},
+	}}
+	p := retryPort(t, h, "http://z")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{Verb: "find", Target: yelpTarget()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.count() != 2 || !hop.OK {
+		t.Fatalf("calls=%d hop=%+v err=%v", h.count(), hop, err)
+	}
+}
+
+func TestCallVerbSetNoRetry503(t *testing.T) {
+	h := &seqHTTP{steps: []struct {
+		resp ports.HTTPResponse
+		err  error
+	}{
+		{resp: ports.HTTPResponse{Status: 503, Body: []byte(`{"error":"busy"}`)}},
+	}}
+	p := retryPort(t, h, "http://z")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{
+		Verb:   "set",
+		Target: yelpTarget(),
+		Body:   map[string]any{"doc_key": "x"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.count() != 1 || hop.StatusCode != 503 {
+		t.Fatalf("calls=%d hop=%+v", h.count(), hop)
+	}
+}
+
+func TestCallVerbPipelineAllowNoRetry503(t *testing.T) {
+	h := &seqHTTP{steps: []struct {
+		resp ports.HTTPResponse
+		err  error
+	}{
+		{resp: ports.HTTPResponse{Status: 503, Body: []byte(`{"error":"busy"}`)}},
+	}}
+	p := retryPort(t, h, "http://z")
+	hop, err := p.CallVerb(context.Background(), ports.VerbRequest{
+		Verb:          "pipeline",
+		AllowPipeline: true,
+		Target:        yelpTarget(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.count() != 1 || hop.StatusCode != 503 {
+		t.Fatalf("calls=%d hop=%+v", h.count(), hop)
 	}
 }

@@ -270,6 +270,7 @@ func (z *ZeusAPI) port() (ports.ZeusPort, error) {
 		StampUser: z.opts.Config.User,
 		Redactor:  z.opts.Redactor,
 		Log:       z.opts.Log,
+		Retry:     z.opts.Config.Retry,
 	})
 	z.lazy = p
 	return p, nil

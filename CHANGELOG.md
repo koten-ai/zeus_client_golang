@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Zeus HTTP `RetryBudget` on idempotent read verbs (`find`/`get`/`search`/`describe`/`explain`/`traverse`) for transport + HTTP 5xx only (API_ZEUS §6.6). Never 4xx/409/429, never `set`/`pipeline`. Same budget as LLM adapters. Version stays **0.1.0**. Claim stays **candidate**. Not V1 job replan.
+
 ### Changed
 
 - Do less on the Mode 1 product path (no version bump, claim stays **candidate**):

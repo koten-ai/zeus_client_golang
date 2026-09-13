@@ -113,6 +113,9 @@ type Port struct {
 	ownsAuth bool
 	http     ports.HttpPort
 	ownsHTTP bool
+	retry    config.RetryPolicy
+	budget   *domain.RetryBudget
+	sleep    func(context.Context, time.Duration) error
 
 	mu     sync.Mutex
 	closed bool
@@ -138,6 +141,9 @@ type PortOptions struct {
 	Redactor  security.Redactor
 	Clock     ports.Clock
 	Log       func(level, msg string, attrs map[string]any)
+	Retry     config.RetryPolicy
+	Budget    *domain.RetryBudget
+	Sleep     func(context.Context, time.Duration) error
 }
 
 // NewPort returns a ZeusPort that dispatches V2 verbs.
@@ -192,6 +198,9 @@ func NewPort(opts PortOptions) *Port {
 		ownsAuth:  ownsAuth,
 		http:      httpPort,
 		ownsHTTP:  ownsHTTP,
+		retry:     opts.Retry,
+		budget:    opts.Budget,
+		sleep:     opts.Sleep,
 	}
 }
 
@@ -267,96 +276,156 @@ func (p *Port) CallVerb(ctx context.Context, req ports.VerbRequest) (ports.VerbH
 	zeusURL := strings.TrimRight(hopEndpoint.URL, "/")
 
 	headers := p.verbHeaders(auth, req, verb)
-	t0 := time.Now()
-	resp, err := httpPort.Request(ctx, ports.HTTPRequest{
-		Method:   "POST",
-		URL:      postURL,
-		Headers:  headers,
-		Body:     bodyBytes,
-		TimeoutS: hopEndpoint.TimeoutS,
-	})
-	if err == nil && resp.Status == 401 && strings.ToLower(strings.TrimSpace(string(hopEndpoint.AuthMode))) == "basic" {
-		auth, err = p.authFor(ctx, req, req.Target, true)
-		if err != nil {
+	budget := p.budgetForCall()
+	attempt := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			if de := domain.FromContext(err); de != nil {
+				return ports.VerbHopResult{}, de
+			}
 			return ports.VerbHopResult{}, err
 		}
-		headers = p.verbHeaders(auth, req, verb)
-		resp, err = httpPort.Request(ctx, ports.HTTPRequest{
+		t0 := time.Now()
+		resp, err := httpPort.Request(ctx, ports.HTTPRequest{
 			Method:   "POST",
 			URL:      postURL,
 			Headers:  headers,
 			Body:     bodyBytes,
 			TimeoutS: hopEndpoint.TimeoutS,
 		})
-	}
+		if err == nil && resp.Status == 401 && strings.ToLower(strings.TrimSpace(string(hopEndpoint.AuthMode))) == "basic" {
+			auth, err = p.authFor(ctx, req, req.Target, true)
+			if err != nil {
+				return ports.VerbHopResult{}, err
+			}
+			headers = p.verbHeaders(auth, req, verb)
+			resp, err = httpPort.Request(ctx, ports.HTTPRequest{
+				Method:   "POST",
+				URL:      postURL,
+				Headers:  headers,
+				Body:     bodyBytes,
+				TimeoutS: hopEndpoint.TimeoutS,
+			})
+		}
+		ms := int(time.Since(t0).Milliseconds())
+		if err != nil {
+			if de, ok := domain.AsError(err); ok {
+				if de.Code == domain.CodeCancelled || de.Code == domain.CodeContextDeadline {
+					return ports.VerbHopResult{}, de
+				}
+			}
+			delay := backoffMS(p.retry, attempt)
+			if budget.Allow(ZeusHopRetryable(verb, 0, true), delay) {
+				budget.Consume(delay)
+				p.emit("info", "zeus_client.zeus.request_retry", map[string]any{
+					"verb": verb, "attempt": attempt, "result": "retry", "duration_ms": ms,
+				})
+				attempt++
+				if serr := p.doSleep(ctx, time.Duration(delay)*time.Millisecond); serr != nil {
+					return ports.VerbHopResult{}, serr
+				}
+				continue
+			}
+			errMsg := errTypeName(err)
+			p.journalHop(verb, urlStr, 0, "", false, errMsg, headers, ms, scope, zeusURL)
+			failAttrs := map[string]any{
+				"req_id":           "",
+				"verb":             verb,
+				"http.status_code": 0,
+				"duration_ms":      ms,
+				"scope":            scope,
+				"zeus.url":         zeusURL,
+				"result":           "error",
+				"bytes.out":        len(bodyBytes),
+			}
+			p.emit("error", "zeus_client.zeus.dispatch_failed", failAttrs)
+			return ports.VerbHopResult{}, domain.NewZeusTransport(domain.CodeZeusTransport, verbsComponent,
+				domain.WithMessage("zeus HTTP transport error"),
+				domain.WithCause(err),
+				domain.WithDetails(map[string]any{
+					"verb":  verb,
+					"url":   urlStr,
+					"scope": scope,
+				}),
+			)
+		}
 
-	ms := int(time.Since(t0).Milliseconds())
-	if err != nil {
-		if de, ok := domain.AsError(err); ok {
-			if de.Code == domain.CodeCancelled || de.Code == domain.CodeContextDeadline {
-				return ports.VerbHopResult{}, de
+		if ZeusHopRetryable(verb, resp.Status, false) {
+			delay := backoffMS(p.retry, attempt)
+			if budget.Allow(true, delay) {
+				budget.Consume(delay)
+				p.emit("info", "zeus_client.zeus.request_retry", map[string]any{
+					"verb": verb, "attempt": attempt, "result": "retry",
+					"http.status_code": resp.Status, "duration_ms": ms,
+				})
+				attempt++
+				if serr := p.doSleep(ctx, time.Duration(delay)*time.Millisecond); serr != nil {
+					return ports.VerbHopResult{}, serr
+				}
+				continue
 			}
 		}
-		errMsg := errTypeName(err)
-		p.journalHop(verb, urlStr, 0, "", false, errMsg, headers, ms, scope, zeusURL)
-		failAttrs := map[string]any{
-			"req_id":           "",
+
+		reqID := domain.ReqIDFromHeaders(resp.Headers)
+		status := resp.Status
+		body := parseVerbBody(resp.Body)
+		var errStr string
+		if status >= 400 {
+			errStr = fmt.Sprintf("zeus HTTP %d", status)
+		}
+		ok := status >= 200 && status < 300 && errStr == ""
+		p.journalHop(verb, urlStr, status, reqID, ok, errStr, headers, ms, scope, zeusURL)
+		hopAttrs := map[string]any{
+			"req_id":           reqID,
 			"verb":             verb,
-			"http.status_code": 0,
+			"http.status_code": status,
 			"duration_ms":      ms,
 			"scope":            scope,
 			"zeus.url":         zeusURL,
-			"result":           "error",
 			"bytes.out":        len(bodyBytes),
+			"bytes.in":         len(resp.Body),
 		}
-		p.emit("error", "zeus_client.zeus.dispatch_failed", failAttrs)
-		return ports.VerbHopResult{}, domain.NewZeusTransport(domain.CodeZeusTransport, verbsComponent,
-			domain.WithMessage("zeus HTTP transport error"),
-			domain.WithCause(err),
-			domain.WithDetails(map[string]any{
-				"verb":  verb,
-				"url":   urlStr,
-				"scope": scope,
-			}),
-		)
+		if ok {
+			p.emit("info", "zeus_client.zeus.req", hopAttrs)
+		} else {
+			hopAttrs["result"] = "error"
+			p.emit("error", "zeus_client.zeus.dispatch_failed", hopAttrs)
+		}
+		return ports.VerbHopResult{
+			OK:         ok,
+			StatusCode: status,
+			ReqID:      reqID,
+			Body:       body,
+			Error:      errStr,
+			URL:        urlStr,
+			BytesIn:    len(resp.Body),
+			BytesOut:   len(bodyBytes),
+			HasBytes:   true,
+		}, nil
 	}
+}
 
-	reqID := domain.ReqIDFromHeaders(resp.Headers)
-	status := resp.Status
-	body := parseVerbBody(resp.Body)
-	var errStr string
-	if status >= 400 {
-		errStr = fmt.Sprintf("zeus HTTP %d", status)
+func (p *Port) doSleep(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		if p != nil && p.sleep != nil {
+			return p.sleep(ctx, 0)
+		}
+		return nil
 	}
-	ok := status >= 200 && status < 300 && errStr == ""
-	p.journalHop(verb, urlStr, status, reqID, ok, errStr, headers, ms, scope, zeusURL)
-	hopAttrs := map[string]any{
-		"req_id":           reqID,
-		"verb":             verb,
-		"http.status_code": status,
-		"duration_ms":      ms,
-		"scope":            scope,
-		"zeus.url":         zeusURL,
-		"bytes.out":        len(bodyBytes),
-		"bytes.in":         len(resp.Body),
+	if p != nil && p.sleep != nil {
+		return p.sleep(ctx, d)
 	}
-	if ok {
-		p.emit("info", "zeus_client.zeus.req", hopAttrs)
-	} else {
-		hopAttrs["result"] = "error"
-		p.emit("error", "zeus_client.zeus.dispatch_failed", hopAttrs)
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		if de := domain.FromContext(ctx.Err()); de != nil {
+			return de
+		}
+		return ctx.Err()
+	case <-t.C:
+		return nil
 	}
-	return ports.VerbHopResult{
-		OK:         ok,
-		StatusCode: status,
-		ReqID:      reqID,
-		Body:       body,
-		Error:      errStr,
-		URL:        urlStr,
-		BytesIn:    len(resp.Body),
-		BytesOut:   len(bodyBytes),
-		HasBytes:   true,
-	}, nil
 }
 
 // Close releases an owned HTTP client / AuthResolver. Injected ports stay.
