@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- FTS pipeline `@step.ids` is rewritten to `@step.doc_keys` before the POST (ZCG-43). `order` and `set` that carry those keys are followed. Hybrid, find, vector, `@step.node_ids`, and the summary stay. Direct `RunDataVerb` still rejects `pipeline`. No version bump. Claim stays **candidate**.
 - Family-law / Python-oracle gaps on the 0.1.0 candidate (no version bump, claim stays **candidate**, `multi_agent` stays **demo**):
   - `mergeTurnSettings` no longer ORs true-default bools. `ignore_user_tool_path_hints=false` injects the honor TOOL PATH POLICY (ZCF-WISH-054). Same for `tool_trail_*` and `soft_require_policy_action`. Agent API overlays caller settings onto config (`config.OverlaySettings`).
   - `Agent.RunTurn` loads catalog like Python `load_for_turn`: bind pack `response_output_schema` → `PackSchema`, `EnsureScopeBrief` (live fetch skipped this train). Lazy FS from `chat_requests_dir` when no injected store.

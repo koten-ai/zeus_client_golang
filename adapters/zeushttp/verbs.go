@@ -246,6 +246,13 @@ func (p *Port) CallVerb(ctx context.Context, req ports.VerbRequest) (ports.VerbH
 	}
 	urlStr := VerbURL(hopEndpoint.URL, req.Target, verb)
 	payload := VerbBodyWithoutRewind(req.Body)
+	if verb == "pipeline" {
+		rewritten, steps := domain.RewriteFTSIdsToDocKeys(payload)
+		if len(steps) > 0 {
+			payload = rewritten
+			p.emit("info", "zeus_client.pipeline.fts_doc_keys", map[string]any{"steps": steps})
+		}
+	}
 	params := RewindQueryParams(req.Rewind)
 	postURL := withQuery(urlStr, params)
 	bodyBytes, err := json.Marshal(payload)

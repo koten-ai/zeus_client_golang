@@ -524,6 +524,63 @@ func TestPipelineAllowFlag(t *testing.T) {
 	}
 }
 
+func TestPipelineFTSIDsBecomeDocKeysBeforeCall(t *testing.T) {
+	plan := map[string]any{
+		"summary": "keep @peach_beers.ids in the summary",
+		"steps": []any{
+			map[string]any{"as": "peach_beers", "verb": "search", "strategy": "fts", "query_text": "peach"},
+			map[string]any{"as": "ranked", "verb": "order", "ids": "@peach_beers.ids", "by": "id"},
+			map[string]any{"as": "rows", "verb": "project", "ids": "@ranked.ids", "fields": []any{"name"}},
+		},
+		"turn_complete":       true,
+		"query_decomposition": map[string]any{"intent": "List", "entity": "Beer"},
+		"decomposition":       map[string]any{"targets": []any{map[string]any{"entity_type": "Beer"}}},
+		"confidence":          "high",
+		"policy_action":       "answer",
+	}
+	llm := &scriptedLLM{script: []any{
+		ports.LlmResponse{ToolCalls: []map[string]any{tc("pipeline", plan, "c1")}},
+	}}
+	zeus := &scriptedZeus{results: map[string]ports.VerbHopResult{
+		"pipeline": {OK: true, StatusCode: 200, ReqID: "req-pipe", Body: map[string]any{"turn_complete": true, "summary": "Pipe done."}},
+	}}
+	var logged []string
+	result := RunAgentTurn(context.Background(), TurnRequest{
+		Message:  "peaches",
+		Tools:    []map[string]any{pipelineTool},
+		Settings: config.ClientSettings{AIProcessResult: false},
+	}, RunAgentTurnOpts{
+		LLM:  llm,
+		Zeus: zeus,
+		Log: func(_, msg string, attrs map[string]any) {
+			logged = append(logged, msg+" "+strings.Trim(strings.ReplaceAll(mustJSON(attrs), "\n", " "), " "))
+		},
+	})
+	if len(zeus.calls) != 1 {
+		t.Fatalf("calls %d", len(zeus.calls))
+	}
+	body := zeus.calls[0].Body
+	if body["summary"] != "keep @peach_beers.ids in the summary" {
+		t.Fatalf("summary %v", body["summary"])
+	}
+	steps := body["steps"].([]any)
+	if steps[1].(map[string]any)["ids"] != "@peach_beers.doc_keys" {
+		t.Fatalf("order %v", steps[1])
+	}
+	if steps[2].(map[string]any)["ids"] != "@ranked.doc_keys" {
+		t.Fatalf("project %v", steps[2])
+	}
+	found := false
+	for _, line := range logged {
+		if strings.Contains(line, "zeus_client.pipeline.fts_doc_keys") && strings.Contains(line, "peach_beers") && strings.Contains(line, "ranked") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("logs %v result %s", logged, result.Status)
+	}
+}
+
 func TestToolHopStampsCorrelationHeaders(t *testing.T) {
 	llm := &scriptedLLM{script: []any{
 		ports.LlmResponse{ToolCalls: []map[string]any{tc("find", map[string]any{"entity_type": "Beer"}, "c1")}},
