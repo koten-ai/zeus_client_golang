@@ -187,6 +187,52 @@ func TestCallVerbAllowPipelineTruePosts(t *testing.T) {
 	}
 }
 
+func TestCallVerbRewritesFTSIDsToDocKeys(t *testing.T) {
+	h := &recHTTP{resp: ports.HTTPResponse{
+		Status:  200,
+		Headers: map[string]string{domain.ReqIDHeader: "pipe-fts"},
+		Body:    []byte(`{"ok":true}`),
+	}}
+	p := nonePort(t, h, "http://z")
+	original := "@peach_beers.ids"
+	_, err := p.CallVerb(context.Background(), ports.VerbRequest{
+		Verb:          "pipeline",
+		AllowPipeline: true,
+		Target:        yelpTarget(),
+		Body: map[string]any{
+			"summary": "keep @peach_beers.ids in the summary",
+			"steps": []any{
+				map[string]any{"as": "peach_beers", "verb": "search", "strategy": "fts", "query_text": "peach"},
+				map[string]any{"as": "rows", "verb": "project", "ids": original, "fields": []any{"name"}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(h.last.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["summary"] != "keep @peach_beers.ids in the summary" {
+		t.Fatalf("summary %v", body["summary"])
+	}
+	steps := body["steps"].([]any)
+	project := steps[1].(map[string]any)
+	if project["ids"] != "@peach_beers.doc_keys" {
+		t.Fatalf("posted ids %v", project["ids"])
+	}
+	found := false
+	for _, line := range p.logs {
+		if strings.Contains(line, "zeus_client.pipeline.fts_doc_keys") && strings.Contains(line, "peach_beers") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("logs %v", p.logs)
+	}
+}
+
 func TestCallVerbRewindIsQueryNotBody(t *testing.T) {
 	h := &recHTTP{resp: ports.HTTPResponse{
 		Status:  200,

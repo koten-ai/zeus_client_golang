@@ -542,6 +542,7 @@ func RunAgentTurn(ctx context.Context, req TurnRequest, opts RunAgentTurnOpts) T
 				briefSha12:    briefSha12,
 				miniSha12:     miniSha12,
 				notes:         &notes,
+				logf:          emit,
 			})
 			if execErr != nil {
 				loopErr = execErr
@@ -1059,6 +1060,7 @@ type executeToolOpts struct {
 	briefSha12    string
 	miniSha12     string
 	notes         *[]string
+	logf          func(level, msg string, attrs map[string]any)
 }
 
 func executeToolCalls(ctx context.Context, o executeToolOpts) (ToolRoundOutcome, error) {
@@ -1122,6 +1124,15 @@ func executeToolCalls(ctx context.Context, o executeToolOpts) (ToolRoundOutcome,
 			})
 			out.Steps = append(out.Steps, map[string]any{"round": o.roundN, "type": "refused", "name": name, "args": tcArgs})
 			continue
+		}
+		if name == "pipeline" {
+			rewritten, steps := domain.RewriteFTSIdsToDocKeys(tcArgs)
+			if len(steps) > 0 {
+				tcArgs = rewritten
+				if o.logf != nil {
+					o.logf("info", "zeus_client.pipeline.fts_doc_keys", map[string]any{"steps": steps})
+				}
+			}
 		}
 		t0 := time.Now()
 		hop, err := o.zeus.CallVerb(ctx, ports.VerbRequest{
